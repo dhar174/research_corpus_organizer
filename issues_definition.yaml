@@ -52,7 +52,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 0
     labels:
-      - setup
       - phase-0
     milestone: "Setup and Infrastructure"
     
@@ -95,7 +94,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 1
     labels:
-      - data-models
       - phase-1
     milestone: "Setup and Infrastructure"
     
@@ -129,7 +127,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 2
     labels:
-      - google-drive
       - phase-2
     milestone: "Setup and Infrastructure"
     
@@ -179,7 +176,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 3
     labels:
-      - pdf-parsing
       - phase-3
     milestone: "Core Processing Pipeline"
     
@@ -227,7 +223,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 4
     labels:
-      - metadata
       - phase-4
     milestone: "Core Processing Pipeline"
     
@@ -275,8 +270,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 5
     labels:
-      - embeddings
-      - faiss
       - phase-5
     milestone: "Core Processing Pipeline"
     
@@ -324,8 +317,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 6
     labels:
-      - summarization
-      - gpt-5.1
       - phase-6
     milestone: "AI Processing"
     
@@ -365,7 +356,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 7
     labels:
-      - export
       - phase-7
     milestone: "Data Management"
     
@@ -433,8 +423,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 8
     labels:
-      - taxonomy
-      - clustering
       - phase-8
     milestone: "AI Processing"
     
@@ -473,8 +461,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 9
     labels:
-      - taxonomy
-      - review
       - phase-9
     milestone: "AI Processing"
     
@@ -525,8 +511,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 10
     labels:
-      - classification
-      - gpt-5.1
       - phase-10
     milestone: "AI Processing"
     
@@ -563,8 +547,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 11
     labels:
-      - deep-analysis
-      - optional
       - phase-11
     milestone: "AI Processing"
     
@@ -607,7 +589,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 12
     labels:
-      - export
       - phase-12
     milestone: "Data Management"
     
@@ -653,8 +634,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 13
     labels:
-      - langgraph
-      - workflow
       - phase-13
     milestone: "Workflow Orchestration"
     
@@ -703,8 +682,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 14
     labels:
-      - quality-control
-      - validation
       - phase-14
     milestone: "Quality and Testing"
     
@@ -751,8 +728,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 15
     labels:
-      - rag
-      - query
       - phase-15
     milestone: "User Interface"
     
@@ -802,8 +777,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 16
     labels:
-      - utilities
-      - tools
       - phase-16
     milestone: "User Interface"
     
@@ -838,8 +811,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 17
     labels:
-      - cost-tracking
-      - optimization
       - phase-17
     milestone: "Monitoring and Optimization"
     
@@ -881,8 +852,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 18
     labels:
-      - error-handling
-      - resilience
       - phase-18
     milestone: "Monitoring and Optimization"
     
@@ -924,7 +893,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 19
     labels:
-      - documentation
       - phase-19
     milestone: "Documentation and Testing"
     
@@ -974,8 +942,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 20
     labels:
-      - testing
-      - validation
       - phase-20
     milestone: "Documentation and Testing"
     
@@ -1025,8 +991,6 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 21
     labels:
-      - deployment
-      - release
       - phase-21
     milestone: "Deployment"
     
@@ -1073,7 +1037,5 @@ issues:
       ## Reference
       See FINAL_NOTEBOOK_ACTION_PLAN.md Phase 22
     labels:
-      - enhancement
-      - optional
       - phase-22
     milestone: "Future Enhancements"

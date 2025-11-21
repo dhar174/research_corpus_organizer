@@ -94,18 +94,11 @@ This package provides everything needed to automatically create 22 comprehensive
 
 ## Labels
 
-All issues are tagged with appropriate labels:
+All issues are tagged with phase labels:
 
 **Phase Labels:** `phase-0` through `phase-22` (23 labels)
 
-**Category Labels:**
-- Technical: `setup`, `data-models`, `pdf-parsing`, `embeddings`, `faiss`
-- AI/ML: `gpt-5.1`, `summarization`, `taxonomy`, `clustering`, `classification`
-- Infrastructure: `langgraph`, `workflow`, `google-drive`
-- Quality: `quality-control`, `validation`, `testing`, `error-handling`
-- User-facing: `rag`, `query`, `utilities`, `export`, `documentation`
-- Operations: `cost-tracking`, `optimization`, `deployment`, `release`
-- Optional: `optional`, `enhancement`, `deep-analysis`
+Each issue is labeled with its corresponding phase number for easy organization and filtering.
 
 ## Prerequisites for Running
 

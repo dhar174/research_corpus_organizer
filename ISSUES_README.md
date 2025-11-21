@@ -141,14 +141,8 @@ The 22 issues are organized into these milestones:
 Issues are tagged with the following labels:
 
 - **Phase labels**: `phase-0` through `phase-22`
-- **Category labels**: 
-  - `setup`, `data-models`, `google-drive`, `pdf-parsing`, `metadata`
-  - `embeddings`, `faiss`, `summarization`, `gpt-5.1`, `export`
-  - `taxonomy`, `clustering`, `review`, `classification`, `deep-analysis`
-  - `langgraph`, `workflow`, `quality-control`, `validation`, `testing`
-  - `rag`, `query`, `utilities`, `tools`, `cost-tracking`, `optimization`
-  - `error-handling`, `resilience`, `documentation`, `deployment`, `release`
-  - `enhancement`, `optional`
+
+Each issue is labeled with its corresponding phase number for easy filtering and organization.
 
 ## Customization
 

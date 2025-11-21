@@ -344,7 +344,7 @@ class PaperChunk(BaseModel):
     
     @field_validator("section_label")
     @classmethod
-    def validate_section(self, v):
+    def validate_section(cls, v):
         valid_sections = {
             "abstract", "introduction", "methods", "results",
             "discussion", "conclusion", "references", "other"

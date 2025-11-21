@@ -1070,7 +1070,7 @@ def rag_query(query: str, state: GraphState, top_k: int = 5) -> list[dict]:
 ## Appendix C: Key Dependencies and Versions
 
 ```python
-# Recommended package versions (as of November 2024)
+# Recommended package versions (as of November 2025)
 DEPENDENCIES = {
     "openai": ">=1.3.0",  # GPT-5.1 support
     "langgraph": ">=0.0.30",

@@ -5,7 +5,6 @@ This script generates the complete Jupyter notebook programmatically.
 """
 
 import json
-from pathlib import Path
 
 class NotebookBuilder:
     """Build Jupyter notebook programmatically."""
@@ -170,7 +169,7 @@ import sys
 
 # Core dependencies with specific versions
 dependencies = [
-    "openai>=1.3.0",           # GPT-5.1 support
+    "openai>=1.3.0",           # GPT-4 support (future compatibility for newer models)
     "langgraph>=0.0.30",       # Workflow orchestration
     "langchain>=0.1.0",        # LangChain integration
     "pymupdf>=1.23.0",         # PDF parsing (fitz)
@@ -224,7 +223,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 # Third-party imports - Data validation
-from pydantic import BaseModel, Field, validator, model_validator
+from pydantic import BaseModel, Field, validator
 
 # Third-party imports - PDF processing
 try:
@@ -1007,7 +1006,7 @@ class MetadataExtractor:
         """Parse various date formats."""
         try:
             return date_parser.parse(date_str).date()
-        except:
+        except Exception:
             return None
 
 class StatisticsTracker:

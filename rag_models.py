@@ -15,7 +15,7 @@ Date: 2025-11-21
 
 from datetime import datetime, date
 from typing import Optional, Dict, List, Literal, Any, TypedDict
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import hashlib
 import logging
 import json
@@ -64,7 +64,7 @@ class RunConfig(BaseModel):
     # Model selections
     summary_model: str = Field(
         default="gpt-4-turbo-preview",
-        description="Model for generating summaries (use gpt-5.1-thinking when available)"
+        description="Model for generating summaries (use the latest available model; update as newer models become available)"
     )
     taxonomy_model: str = Field(
         default="gpt-4-turbo-preview",
@@ -143,13 +143,15 @@ class RunConfig(BaseModel):
         description="Overlap between chunks in characters"
     )
     
-    @validator("max_papers_per_run")
+    @field_validator("max_papers_per_run")
+    @classmethod
     def validate_max_papers(cls, v):
         if v is not None and v <= 0:
             raise ValueError("max_papers_per_run must be positive or None")
         return v
     
-    @validator("max_chunks_per_paper")
+    @field_validator("max_chunks_per_paper")
+    @classmethod
     def validate_max_chunks(cls, v):
         if v <= 0:
             raise ValueError("max_chunks_per_paper must be positive")
@@ -270,17 +272,19 @@ class PaperRecord(BaseModel):
         description="When record was last updated"
     )
     
-    @validator("tier1_confidence", "tier2_confidence", "tier3_confidence")
+    @field_validator("tier1_confidence", "tier2_confidence", "tier3_confidence")
+    @classmethod
     def validate_confidence(cls, v):
         if v is not None and not (0 <= v <= 1):
             raise ValueError("Confidence scores must be between 0 and 1")
         return v
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             date: lambda v: v.isoformat()
         }
+    )
 
 
 # =============================================================================
@@ -331,13 +335,15 @@ class PaperChunk(BaseModel):
         description="Estimated token count"
     )
     
-    @validator("char_count", always=True)
-    def set_char_count(cls, v, values):
-        if "text" in values:
-            return len(values["text"])
+    @field_validator("char_count", mode="after")
+    @classmethod
+    def set_char_count(cls, v, info):
+        if hasattr(info, 'data') and "text" in info.data:
+            return len(info.data["text"])
         return v
     
-    @validator("section_label")
+    @field_validator("section_label")
+    @classmethod
     def validate_section(cls, v):
         valid_sections = {
             "abstract", "introduction", "methods", "results",
@@ -367,10 +373,11 @@ class TopicNode(BaseModel):
     # Optional centroid embedding for clustering
     centroid: Optional[List[float]] = Field(default=None, description="Topic centroid vector")
     
-    @validator("paper_count", always=True)
-    def set_paper_count(cls, v, values):
-        if "paper_ids" in values:
-            return len(values["paper_ids"])
+    @field_validator("paper_count", mode="after")
+    @classmethod
+    def set_paper_count(cls, v, info):
+        if hasattr(info, 'data') and "paper_ids" in info.data:
+            return len(info.data["paper_ids"])
         return v
 
 
@@ -408,10 +415,11 @@ class TopicHierarchy(BaseModel):
         description="Model used for topic labeling"
     )
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
     
     def get_topic_by_id(self, topic_id: str) -> Optional[TopicNode]:
         """Find a topic by its ID across all tiers."""
@@ -646,9 +654,10 @@ class MetadataExtractor:
     def parse_date(date_str: str) -> Optional[date]:
         """Parse various date formats."""
         from dateutil import parser as date_parser
+        from dateutil.parser import ParserError
         try:
             return date_parser.parse(date_str).date()
-        except:
+        except (ParserError, ValueError, TypeError):
             return None
 
 
@@ -677,7 +686,6 @@ class StatisticsTracker:
         chars_per_page = chars_total / page_count if page_count > 0 else 0
         
         # Good quality: high alnum ratio and reasonable chars/page
-        quality_score = 0.0
         if alnum_ratio > 0.7 and chars_per_page > 1000:
             quality_score = 0.9
         elif alnum_ratio > 0.5 and chars_per_page > 500:

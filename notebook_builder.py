@@ -223,7 +223,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 # Third-party imports - Data validation
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 # Third-party imports - PDF processing
 try:

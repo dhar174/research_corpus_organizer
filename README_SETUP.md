@@ -104,9 +104,9 @@ All core data structures are defined in `rag_models.py`:
    config = RunConfig(
        drive_folder_path="PDFs",
        max_papers_per_run=10,  # Limit for testing
-       summary_model="gpt-4-turbo-preview",
-       taxonomy_model="gpt-4-turbo-preview",
-       classification_model="gpt-4-turbo-preview",
+       summary_model="gpt-5.1-mini",
+       taxonomy_model="gpt-5.1-mini",
+       classification_model="gpt-5.1-mini",
        embedding_model="text-embedding-3-large",
    )
    
@@ -144,7 +144,7 @@ The `RunConfig` model includes all necessary parameters:
 - `max_chunks_per_paper`: Maximum chunks per paper (default: 100)
 
 ### Models
-- `summary_model`: Model for summaries (e.g., "gpt-4-turbo-preview")
+- `summary_model`: Model for summaries (e.g., "gpt-5.1-mini")
 - `taxonomy_model`: Model for taxonomy generation
 - `classification_model`: Model for paper classification
 - `embedding_model`: Model for embeddings (e.g., "text-embedding-3-large")

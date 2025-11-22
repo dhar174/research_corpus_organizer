@@ -223,7 +223,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 # Third-party imports - Data validation
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 # Third-party imports - PDF processing
 try:
@@ -339,15 +339,15 @@ class RunConfig(BaseModel):
     
     # Model selections
     summary_model: str = Field(
-        default="gpt-4-turbo-preview",
-        description="Model for generating summaries (use gpt-5.1-thinking when available)"
+        default="gpt-5.1-mini",
+        description="Model for generating summaries (use the latest available model; update as newer models become available)"
     )
     taxonomy_model: str = Field(
-        default="gpt-4-turbo-preview",
+        default="gpt-5.1-mini",
         description="Model for taxonomy generation"
     )
     classification_model: str = Field(
-        default="gpt-4-turbo-preview",
+        default="gpt-5.1-mini",
         description="Model for paper classification"
     )
     embedding_model: str = Field(
@@ -419,13 +419,15 @@ class RunConfig(BaseModel):
         description="Overlap between chunks in characters"
     )
     
-    @validator("max_papers_per_run")
+    @field_validator("max_papers_per_run")
+    @classmethod
     def validate_max_papers(cls, v):
         if v is not None and v <= 0:
             raise ValueError("max_papers_per_run must be positive or None")
         return v
     
-    @validator("max_chunks_per_paper")
+    @field_validator("max_chunks_per_paper")
+    @classmethod
     def validate_max_chunks(cls, v):
         if v <= 0:
             raise ValueError("max_chunks_per_paper must be positive")
@@ -446,10 +448,10 @@ config = RunConfig(
     max_chunks_per_paper=100,     # Maximum chunks per paper
     
     # ===== MODEL SELECTIONS =====
-    # Use GPT-5.1 when available, or GPT-4 models
-    summary_model="gpt-4-turbo-preview",
-    taxonomy_model="gpt-4-turbo-preview",
-    classification_model="gpt-4-turbo-preview",
+    # Using GPT-5.1-mini as the current SOTA model
+    summary_model="gpt-5.1-mini",
+    taxonomy_model="gpt-5.1-mini",
+    classification_model="gpt-5.1-mini",
     embedding_model="text-embedding-3-large",
     
     # ===== REASONING EFFORT =====
@@ -617,17 +619,19 @@ class PaperRecord(BaseModel):
         description="When record was last updated"
     )
     
-    @validator("tier1_confidence", "tier2_confidence", "tier3_confidence")
+    @field_validator("tier1_confidence", "tier2_confidence", "tier3_confidence")
+    @classmethod
     def validate_confidence(cls, v):
         if v is not None and not (0 <= v <= 1):
             raise ValueError("Confidence scores must be between 0 and 1")
         return v
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             date: lambda v: v.isoformat()
         }
+    )
 
 print("✓ PaperRecord schema defined successfully")''')
 
@@ -682,13 +686,15 @@ class PaperChunk(BaseModel):
         description="Estimated token count"
     )
     
-    @validator("char_count", always=True)
-    def set_char_count(cls, v, values):
-        if "text" in values:
-            return len(values["text"])
+    @field_validator("char_count", mode="after")
+    @classmethod
+    def set_char_count(cls, v, info):
+        if hasattr(info, 'data') and "text" in info.data:
+            return len(info.data["text"])
         return v
     
-    @validator("section_label")
+    @field_validator("section_label")
+    @classmethod
     def validate_section(cls, v):
         valid_sections = {
             "abstract", "introduction", "methods", "results",
@@ -722,10 +728,11 @@ class TopicNode(BaseModel):
     # Optional centroid embedding for clustering
     centroid: Optional[List[float]] = Field(default=None, description="Topic centroid vector")
     
-    @validator("paper_count", always=True)
-    def set_paper_count(cls, v, values):
-        if "paper_ids" in values:
-            return len(values["paper_ids"])
+    @field_validator("paper_count", mode="after")
+    @classmethod
+    def set_paper_count(cls, v, info):
+        if hasattr(info, 'data') and "paper_ids" in info.data:
+            return len(info.data["paper_ids"])
         return v
 
 class TopicHierarchy(BaseModel):
@@ -762,10 +769,11 @@ class TopicHierarchy(BaseModel):
         description="Model used for topic labeling"
     )
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
     
     def get_topic_by_id(self, topic_id: str) -> Optional[TopicNode]:
         """Find a topic by its ID across all tiers."""

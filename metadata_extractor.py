@@ -654,8 +654,12 @@ def extract_pdf_metadata(paper: PaperRecord) -> PaperRecord:
                 # PyMuPDF dates format: "D:YYYYMMDDHHmmSS..."
                 date_str = properties[date_field]
                 if date_str.startswith('D:'):
-                    date_str = date_str[2:16]  # Extract YYYYMMDDHHmmSS
-                    parsed_date = datetime.strptime(date_str, '%Y%m%d%H%M%S').date()
+                    if len(date_str) >= 16:
+                        date_str = date_str[2:16]  # Extract YYYYMMDDHHmmSS
+                        parsed_date = datetime.strptime(date_str, '%Y%m%d%H%M%S').date()
+                    else:
+                        logger.debug(f"Malformed PDF date format: {date_str}")
+                        continue
                 else:
                     parsed_date = date_parser.parse(date_str).date()
                 

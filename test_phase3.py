@@ -47,7 +47,6 @@ from pdf_parser import (
     validate_parsing,
     validate_chunks,
 )
-import pdf_parser
 
 
 # =============================================================================

@@ -131,8 +131,8 @@ startxref
 """
     
     filepath = os.path.join(tmpdir, "test.pdf")
-    with open(filepath, 'w') as f:
-        f.write(pdf_content)
+    with open(filepath, 'wb') as f:
+        f.write(pdf_content.encode('latin-1'))
     
     return filepath
 

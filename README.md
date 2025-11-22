@@ -15,13 +15,14 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phases 0, 1, 2, and 3 Complete ✓
+**Current Phase:** Phases 0, 1, 2, 3, and 4 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
 - ✅ Phase 2: Google Drive integration and PDF discovery (COMPLETE - see PHASE2_COMPLETION.md)
 - ✅ Phase 3: PDF parsing and chunking (COMPLETE - see PHASE3_COMPLETION.md)
-- 🔄 Phases 4-22: Metadata extraction, embeddings, taxonomy, RAG interface (planned)
+- ✅ Phase 4: Metadata extraction (COMPLETE - see PHASE4_COMPLETION.md)
+- 🔄 Phases 5-22: Embeddings, FAISS index, taxonomy, RAG interface (planned)
 
 ## Quick Start
 
@@ -85,13 +86,21 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - create_chunks_from_pages: Section-aware chunk creation
   - parse_and_chunk_worker: LangGraph worker node
   - Validation functions for parsing and chunks
+- `metadata_extractor.py` - Metadata extraction from multiple sources (Phase 4)
+  - extract_arxiv_metadata: Query arXiv API for paper metadata
+  - extract_doi_metadata: Query CrossRef API via DOI
+  - extract_pdf_metadata: Extract PDF document properties
+  - extract_abstract_from_text: Pattern-based abstract extraction
+  - normalize_metadata: Normalize and validate metadata
+  - metadata_extraction_worker: LangGraph worker node
+  - API integration with rate limiting and retry logic
 
 ### Utilities
 - `notebook_builder.py` - Generate complete standalone notebooks
 
 ## Features
 
-### Implemented (Phases 0, 1, 2, & 3)
+### Implemented (Phases 0, 1, 2, 3, & 4)
 - ✅ Environment inspection (Python version, GPU/CPU, system resources)
 - ✅ Dependency installation (18 packages with version pinning)
 - ✅ Import management with error handling
@@ -114,9 +123,18 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
 - ✅ Parse quality detection
 - ✅ Comprehensive validation (parsing & chunks)
 - ✅ LangGraph worker integration
+- ✅ ArXiv ID detection and API integration
+- ✅ ArXiv metadata extraction (title, authors, abstract, dates)
+- ✅ DOI detection in text content
+- ✅ CrossRef API integration for published papers
+- ✅ PDF document properties extraction
+- ✅ Abstract extraction from sections and patterns
+- ✅ Metadata normalization (authors, titles, venues, dates)
+- ✅ Metadata quality validation and scoring
+- ✅ API rate limiting and retry logic
+- ✅ Multiple metadata source prioritization
 
-### Planned (Phases 4-22)
-- 📋 Metadata extraction (arXiv, DOI, CrossRef)
+### Planned (Phases 5-22)
 - 📋 OpenAI embedding generation
 - 📋 FAISS vector indexing
 - 📋 GPT-5.1 summarization (multiple passes)
@@ -239,10 +257,16 @@ python test_phase3.py
 
 # Run Phase 3 examples
 python examples_phase3.py
+
+# Test Phase 4 metadata extraction
+python test_phase4.py
+
+# Run Phase 4 examples
+python examples_phase4.py
 ```
 
 ---
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Last Updated:** 2025-11-22  
-**Status:** Phases 0, 1, 2, & 3 Complete - Ready for Phase 4 Development
+**Status:** Phases 0, 1, 2, 3, & 4 Complete - Ready for Phase 5 Development

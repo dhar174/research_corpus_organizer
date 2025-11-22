@@ -48,12 +48,12 @@ from pdf_parser import (
     # Text chunking
     chunk_text,
     create_chunks_from_pages,
-    _split_into_sentences,
     
     # Validation
     validate_parsing,
     validate_chunks,
 )
+import pdf_parser
 
 
 # =============================================================================

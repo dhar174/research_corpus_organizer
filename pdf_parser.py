@@ -604,10 +604,12 @@ def chunk_text(
             overlap_sentences = []
             overlap_size = 0
             for sent in reversed(current_chunk):
-                if overlap_size + len(sent) > overlap:
+                # Add 1 for the space between sentences, except for the first sentence
+                additional_space = 1 if overlap_sentences else 0
+                if overlap_size + len(sent) + additional_space > overlap:
                     break
                 overlap_sentences.insert(0, sent)
-                overlap_size += len(sent)
+                overlap_size += len(sent) + additional_space
             
             current_chunk = overlap_sentences
             current_size = overlap_size

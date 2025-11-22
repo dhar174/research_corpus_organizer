@@ -15,7 +15,6 @@ Mock tests are provided for environments without these dependencies.
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Dict, Any
 

@@ -566,7 +566,10 @@ class TopicLabelGenerator:
             # Truncate abstract
             if len(abstract) > 500:
                 abstract = abstract[:500] + "..."
-            papers_context.append(f"{i}. Title: {title}\n   Abstract: {abstract}")
+            # Escape title and abstract to prevent prompt injection
+            safe_title = json.dumps(title)
+            safe_abstract = json.dumps(abstract)
+            papers_context.append(f"{i}. Title: {safe_title}\n   Abstract: {safe_abstract}")
         
         context_text = "\n\n".join(papers_context)
         

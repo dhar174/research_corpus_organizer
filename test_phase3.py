@@ -16,16 +16,13 @@ Mock tests are provided for environments without these dependencies.
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from rag_models import (
-    RunConfig,
     PaperRecord,
     PaperChunk,
-    GraphState,
     StateManager,
     IDGenerator,
     create_default_config
@@ -33,11 +30,9 @@ from rag_models import (
 
 from pdf_parser import (
     # Core parsing
-    parse_pdf,
     parse_and_chunk_worker,
     
     # OCR fallback
-    apply_ocr,
     needs_ocr,
     
     # Section detection
@@ -283,7 +278,7 @@ def test_split_into_sentences():
     print("\nTesting _split_into_sentences...")
     
     text = "This is sentence one. This is sentence two! And this is sentence three? Finally, sentence four."
-    sentences = _split_into_sentences(text)
+    sentences = pdf_parser._split_into_sentences(text)
     
     assert len(sentences) == 4
     assert "sentence one" in sentences[0]
@@ -292,12 +287,12 @@ def test_split_into_sentences():
     
     # Test with single sentence
     single = "Just one sentence here."
-    sentences = _split_into_sentences(single)
+    sentences = pdf_parser._split_into_sentences(single)
     assert len(sentences) == 1
     print("  ✓ Single sentence handling")
     
     # Test with empty string
-    sentences = _split_into_sentences("")
+    sentences = pdf_parser._split_into_sentences("")
     assert len(sentences) == 0
     print("  ✓ Empty string handling")
     

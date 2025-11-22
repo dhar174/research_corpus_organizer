@@ -14,7 +14,7 @@ Date: 2025-11-22
 
 import os
 import re
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Optional, Any
 import logging
 
 try:
@@ -321,10 +321,9 @@ def apply_ocr(file_path: str, config: RunConfig) -> Dict[str, Any]:
             
             # Convert page to image
             pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x scale for better OCR
-            img_data = pix.tobytes("png")
             
-            # Convert to PIL Image
-            img = Image.frombytes("RGB", [pix.width, pix.height], img_data)
+            # Convert to PIL Image using raw RGB data
+            img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
             
             # Apply OCR
             text = pytesseract.image_to_string(img)
@@ -379,10 +378,12 @@ class SectionDetector:
     """
     
     # Common section headings with variations
+    # Note: Patterns are checked in dictionary order (insertion order in Python 3.7+)
+    # 'summary' appears in both abstract and conclusion, but abstract takes precedence
     SECTION_PATTERNS = {
         'abstract': [
             r'\babstract\b',
-            r'\bsummary\b',
+            r'\bsummary\b',  # Generic "Summary" headings treated as abstract
         ],
         'introduction': [
             r'\bintroduction\b',
@@ -406,7 +407,7 @@ class SectionDetector:
         ],
         'conclusion': [
             r'\bconclusions?\b',
-            r'\bsummary\b',
+            r'\bsummary\s+and\s+conclusion\b',  # More specific pattern for conclusion
             r'\bfuture\s+work\b',
         ],
         'references': [
@@ -589,7 +590,9 @@ def chunk_text(
         sentence_len = len(sentence)
         
         # If adding this sentence exceeds chunk_size, finalize current chunk
-        if current_size + sentence_len > chunk_size and current_chunk:
+        # Account for space that will be added when joining sentences
+        space_for_join = 1 if current_chunk else 0
+        if current_size + sentence_len + space_for_join > chunk_size and current_chunk:
             chunk_text_str = " ".join(current_chunk)
             chunks.append({
                 'text': chunk_text_str,
@@ -615,7 +618,8 @@ def chunk_text(
             current_size = overlap_size
         
         current_chunk.append(sentence)
-        current_size += sentence_len
+        # Add space character to size tracking when joining
+        current_size += sentence_len + (1 if len(current_chunk) > 1 else 0)
     
     # Add final chunk
     if current_chunk:

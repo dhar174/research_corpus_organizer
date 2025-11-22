@@ -54,7 +54,6 @@ try:
 except ImportError as e:
     print(f"Warning: topic_taxonomy module not available: {e}")
     TAXONOMY_MODULE_AVAILABLE = False
-    TAXONOMY_MODULE_AVAILABLE = False
 
 try:
     import numpy as np

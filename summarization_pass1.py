@@ -26,14 +26,14 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("Warning: OpenAI package not available. Install with: pip install openai")
+    logger.warning("OpenAI package not available. Install with: pip install openai")
 
 try:
     from tqdm import tqdm
     TQDM_AVAILABLE = True
 except ImportError:
     TQDM_AVAILABLE = False
-    print("Warning: tqdm not available. Progress bars will be disabled.")
+    logger.warning("tqdm not available. Progress bars will be disabled.")
 
 from rag_models import (
     PaperRecord,

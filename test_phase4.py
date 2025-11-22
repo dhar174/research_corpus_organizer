@@ -150,7 +150,8 @@ def test_detect_doi():
     
     for text, expected in test_cases:
         result = detect_doi(text)
-        print(f"  Text: '{text[:50]}...' if len(text) > 50 else '{text}'")
+        display_text = f"{text[:50]}..." if len(text) > 50 else text
+        print(f"  Text: '{display_text}'")
         print(f"    Expected: {expected}, Got: {result}")
         if expected:
             assert result == expected, f"Failed for '{text}'"

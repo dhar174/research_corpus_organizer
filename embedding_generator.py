@@ -250,10 +250,12 @@ class EmbeddingGenerator:
         """
         Estimate cost in USD for the given number of tokens.
         
-        Pricing (as of Nov 2025 - adjust as needed):
+        Pricing (as of Nov 2025 - placeholder, verify before use):
         - text-embedding-3-small: $0.02 per 1M tokens
         - text-embedding-3-large: $0.13 per 1M tokens
         - text-embedding-ada-002: $0.10 per 1M tokens
+        
+        Note: Verify current pricing at https://openai.com/pricing before use.
         
         Args:
             tokens: Number of tokens

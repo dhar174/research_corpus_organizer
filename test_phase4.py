@@ -14,10 +14,9 @@ Note: Some tests require internet access for API calls.
 Mock tests are provided for offline environments.
 """
 
-import os
 import sys
 from pathlib import Path
-from datetime import datetime, date
+from datetime import date
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -31,15 +30,9 @@ from rag_models import (
 from metadata_extractor import (
     # ArXiv extraction
     detect_arxiv_id,
-    extract_arxiv_metadata,
     
     # DOI extraction
     detect_doi,
-    extract_doi_metadata,
-    
-    # PDF metadata
-    extract_pdf_properties,
-    extract_pdf_metadata,
     
     # Abstract extraction
     extract_abstract_from_text,
@@ -52,9 +45,6 @@ from metadata_extractor import (
     parse_date_flexible,
     validate_metadata,
     normalize_metadata,
-    
-    # Worker
-    metadata_extraction_worker,
 )
 
 

@@ -31,14 +31,9 @@ from rag_models import (
 from metadata_extractor import (
     # ArXiv
     detect_arxiv_id,
-    extract_arxiv_metadata,
     
     # DOI
     detect_doi,
-    extract_doi_metadata,
-    
-    # PDF metadata
-    extract_pdf_metadata,
     
     # Abstract
     extract_abstract_from_text,
@@ -46,9 +41,6 @@ from metadata_extractor import (
     # Normalization
     normalize_metadata,
     validate_metadata,
-    
-    # Worker
-    metadata_extraction_worker,
 )
 
 

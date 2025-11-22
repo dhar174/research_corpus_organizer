@@ -16,7 +16,7 @@ import os
 import re
 import time
 import logging
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 from dateutil import parser as date_parser
 from dateutil.parser import ParserError
@@ -88,7 +88,6 @@ MAX_RETRIES = 3
 RETRY_BACKOFF_FACTOR = 2.0
 
 # Regex patterns
-ARXIV_ID_PATTERN = r'(?:arxiv[:\s]?)?(\d{4}\.\d{4,5}(?:v\d+)?)'
 DOI_PATTERN = r'10\.\d{4,}/[^\s]+'
 
 
@@ -386,7 +385,8 @@ def query_crossref_api(doi: str, retry_count: int = 0) -> Optional[Dict[str, Any
     
     try:
         # Query CrossRef API
-        url = f"{CROSSREF_API_URL}/{doi}"
+        from urllib.parse import quote
+        url = f"{CROSSREF_API_URL}/{quote(doi, safe='')}"
         headers = {
             'User-Agent': 'RAG-PDF-System/1.0 (mailto:research@example.com)'
         }
@@ -1054,16 +1054,21 @@ def metadata_extraction_worker(paper_id: str, state: GraphState) -> GraphState:
             logger.error(f"Paper {paper_id} not found in state")
             return state
         
-        config = state['config']
-        
         logger.info(f"Starting metadata extraction for {paper.filename}")
         
         # Get text for ID/abstract detection
         full_text = ""
         chunks = state['chunks'].get(paper_id, [])
         if chunks:
-            # Concatenate first few chunks for detection
-            full_text = " ".join(chunk.text for chunk in chunks[:5])
+            # Concatenate first few chunks for detection with size limit
+            max_chars = 5000
+            for chunk in chunks[:5]:
+                if len(full_text) >= max_chars:
+                    break
+                full_text += " " + chunk.text
+                if len(full_text) > max_chars:
+                    full_text = full_text[:max_chars]
+                    break
         
         # Step 1: Extract arXiv metadata
         paper = extract_arxiv_metadata(paper, full_text)

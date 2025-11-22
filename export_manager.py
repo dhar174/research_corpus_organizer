@@ -26,7 +26,7 @@ try:
     PANDAS_AVAILABLE = True
 except ImportError:
     PANDAS_AVAILABLE = False
-    print("Warning: pandas not available. Some export features will be limited.")
+    logger.warning("pandas not available. Some export features will be limited.")
 
 from rag_models import (
     PaperRecord,

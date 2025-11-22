@@ -15,14 +15,15 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phases 0, 1, 2, 3, and 4 Complete ✓
+**Current Phase:** Phases 0, 1, 2, 3, 4, and 5 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
 - ✅ Phase 2: Google Drive integration and PDF discovery (COMPLETE - see PHASE2_COMPLETION.md)
 - ✅ Phase 3: PDF parsing and chunking (COMPLETE - see PHASE3_COMPLETION.md)
 - ✅ Phase 4: Metadata extraction (COMPLETE - see PHASE4_COMPLETION.md)
-- 🔄 Phases 5-22: Embeddings, FAISS index, taxonomy, RAG interface (planned)
+- ✅ Phase 5: Embedding generation and FAISS index (COMPLETE - see PHASE5_COMPLETION.md)
+- 🔄 Phases 6-22: Summarization, taxonomy, classification, RAG interface (planned)
 
 ## Quick Start
 
@@ -94,13 +95,21 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - normalize_metadata: Normalize and validate metadata
   - metadata_extraction_worker: LangGraph worker node
   - API integration with rate limiting and retry logic
+- `embedding_generator.py` - Embedding generation and FAISS indexing (Phase 5)
+  - EmbeddingGenerator: OpenAI embeddings with batch processing and retry logic
+  - embed_all_chunks: Generate embeddings for all chunks in state
+  - FaissIndexBuilder: Build and manage FAISS vector index
+  - build_faiss_index: Create searchable index with metadata mapping
+  - save_faiss_index/load_faiss_index: Persist and reload index
+  - embedding_generation_worker: LangGraph worker node
+  - Cost estimation and tracking
 
 ### Utilities
 - `notebook_builder.py` - Generate complete standalone notebooks
 
 ## Features
 
-### Implemented (Phases 0, 1, 2, 3, & 4)
+### Implemented (Phases 0, 1, 2, 3, 4, & 5)
 - ✅ Environment inspection (Python version, GPU/CPU, system resources)
 - ✅ Dependency installation (18 packages with version pinning)
 - ✅ Import management with error handling
@@ -133,17 +142,21 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
 - ✅ Metadata quality validation and scoring
 - ✅ API rate limiting and retry logic
 - ✅ Multiple metadata source prioritization
+- ✅ OpenAI embedding generation with batch processing
+- ✅ Exponential backoff retry logic for embeddings
+- ✅ Embedding cost estimation and tracking
+- ✅ FAISS vector index creation (CPU-based)
+- ✅ Metadata mapping for chunk retrieval
+- ✅ Index persistence (save/load with versioning)
+- ✅ Index validation and integrity checks
+- ✅ Search functionality for RAG queries
 
-### Planned (Phases 5-22)
-- 📋 OpenAI embedding generation
-- 📋 FAISS vector indexing
+### Planned (Phases 6-22)
 - 📋 GPT-5.1 summarization (multiple passes)
 - 📋 3-tier taxonomy generation via clustering
 - 📋 Topic classification with reasoning
 - 📋 RAG query interface
 - 📋 Quality control and validation
-- 📋 Cost tracking and optimization
-- 📋 Comprehensive error handling
 - 📋 Export to CSV/Parquet
 
 ## System Architecture

@@ -21,6 +21,8 @@ import logging
 import time
 from dataclasses import dataclass
 
+logger = logging.getLogger(__name__)
+
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
@@ -42,8 +44,6 @@ from rag_models import (
     RunConfig,
     StateManager,
 )
-
-logger = logging.getLogger(__name__)
 
 # Export list for clean imports
 __all__ = [

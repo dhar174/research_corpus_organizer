@@ -21,6 +21,8 @@ import logging
 import json
 import csv
 
+logger = logging.getLogger(__name__)
+
 try:
     import pandas as pd
     PANDAS_AVAILABLE = True
@@ -33,8 +35,6 @@ from rag_models import (
     GraphState,
     RunConfig,
 )
-
-logger = logging.getLogger(__name__)
 
 # Export list for clean imports
 __all__ = [

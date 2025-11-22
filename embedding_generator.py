@@ -1018,4 +1018,4 @@ def embedding_generation_worker(
             "error": str(e),
             "timestamp": datetime.now().isoformat(),
         })
-        raise
+        return state

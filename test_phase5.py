@@ -14,11 +14,10 @@ Note: Some tests require OpenAI API key and FAISS.
 Mock tests are provided for environments without these dependencies.
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import json
 
 # Add parent directory to path
@@ -36,8 +35,6 @@ try:
     from embedding_generator import (
         # Step 5.1
         EmbeddingGenerator,
-        create_embedding_generator,
-        generate_embeddings,
         estimate_embedding_cost,
         
         # Step 5.2
@@ -46,7 +43,6 @@ try:
         
         # Step 5.3
         FaissIndexBuilder,
-        build_faiss_index,
         create_metadata_mapping,
         
         # Step 5.4
@@ -75,7 +71,8 @@ except ImportError:
     print("Warning: numpy not available")
 
 try:
-    import faiss
+    # Only check if faiss is importable; do not keep the import
+    __import__('faiss')
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False

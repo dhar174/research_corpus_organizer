@@ -50,11 +50,17 @@ from rag_models import (
     PaperChunk,
     PaperRecord,
     GraphState,
-    StateManager,
     RunConfig,
 )
 
 logger = logging.getLogger(__name__)
+
+# Pricing per 1M tokens (as of Nov 2025 - verify at https://openai.com/pricing)
+EMBEDDING_MODEL_PRICING = {
+    "text-embedding-3-small": 0.02,
+    "text-embedding-3-large": 0.13,
+    "text-embedding-ada-002": 0.10,
+}
 
 # Export list
 __all__ = [
@@ -156,7 +162,7 @@ class EmbeddingGenerator:
             - stats: dictionary with token usage and cost information
         """
         if not texts:
-            return np.array([]), {"total_tokens": 0, "api_calls": 0}
+            return np.array([]).reshape(0, 0), {"total_tokens": 0, "api_calls": 0}
         
         embeddings = []
         total_tokens = 0
@@ -250,12 +256,7 @@ class EmbeddingGenerator:
         """
         Estimate cost in USD for the given number of tokens.
         
-        Pricing (as of Nov 2025 - placeholder, verify before use):
-        - text-embedding-3-small: $0.02 per 1M tokens
-        - text-embedding-3-large: $0.13 per 1M tokens
-        - text-embedding-ada-002: $0.10 per 1M tokens
-        
-        Note: Verify current pricing at https://openai.com/pricing before use.
+        Uses EMBEDDING_MODEL_PRICING constant for pricing data.
         
         Args:
             tokens: Number of tokens
@@ -263,14 +264,7 @@ class EmbeddingGenerator:
         Returns:
             Estimated cost in USD
         """
-        # Pricing per 1M tokens
-        pricing = {
-            "text-embedding-3-small": 0.02,
-            "text-embedding-3-large": 0.13,
-            "text-embedding-ada-002": 0.10,
-        }
-        
-        price_per_million = pricing.get(self.model, 0.10)  # Default to ada-002 pricing
+        price_per_million = EMBEDDING_MODEL_PRICING.get(self.model, 0.10)  # Default to ada-002 pricing
         return (tokens / 1_000_000) * price_per_million
     
     def get_stats(self) -> Dict[str, Any]:
@@ -353,14 +347,7 @@ def estimate_embedding_cost(
     # Rough estimate: 1 token ≈ 4 characters
     estimated_tokens = (num_texts * avg_chars_per_text) // 4
     
-    # Pricing per 1M tokens
-    pricing = {
-        "text-embedding-3-small": 0.02,
-        "text-embedding-3-large": 0.13,
-        "text-embedding-ada-002": 0.10,
-    }
-    
-    price_per_million = pricing.get(model, 0.10)
+    price_per_million = EMBEDDING_MODEL_PRICING.get(model, 0.10)
     estimated_cost = (estimated_tokens / 1_000_000) * price_per_million
     
     return {
@@ -972,7 +959,6 @@ def embedding_generation_worker(
         
         # Get embeddings and chunks
         embeddings = state["embeddings"]["chunk_embeddings"]
-        chunk_ids = state["embeddings"]["chunk_ids"]
         
         # Collect chunks in order
         all_chunks = []

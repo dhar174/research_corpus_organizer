@@ -180,7 +180,7 @@ def query_arxiv_api(arxiv_id: str, retry_count: int = 0) -> Optional[Dict[str, A
         response.raise_for_status()
         
         # Parse XML response
-        import xml.etree.ElementTree as ET
+        from defusedxml import ElementTree as ET
         root = ET.fromstring(response.content)
         
         # Find the entry

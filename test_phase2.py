@@ -14,9 +14,7 @@ Mock tests are provided for local testing.
 import os
 import sys
 import tempfile
-import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -55,6 +53,8 @@ def test_validate_mount():
     with tempfile.TemporaryDirectory() as tmpdir:
         result = validate_mount(tmpdir)
         # On most systems, tempdir won't be a mount point
+        assert result['mounted'] == False
+        assert result['error'] is not None
         print(f"  ✓ Mount validation logic works")
 
 

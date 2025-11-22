@@ -11,10 +11,8 @@ Date: 2025-11-22
 """
 
 import os
-import hashlib
 import shutil
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 import logging
 
 try:
@@ -101,7 +99,7 @@ def mount_google_drive(mount_point: str = "/content/drive", force_remount: bool 
         return False
 
 
-def validate_mount(mount_point: str = "/content/drive") -> Dict[str, any]:
+def validate_mount(mount_point: str = "/content/drive") -> Dict[str, Any]:
     """
     Validate that Google Drive is properly mounted.
     
@@ -495,7 +493,7 @@ def handle_duplicates(
 # Step 2.3: File Management Utilities
 # =============================================================================
 
-def validate_file_access(file_path: str) -> Dict[str, any]:
+def validate_file_access(file_path: str) -> Dict[str, Any]:
     """
     Validate that a file exists and is accessible.
     
@@ -553,7 +551,7 @@ def validate_file_access(file_path: str) -> Dict[str, any]:
     return result
 
 
-def check_disk_space(path: str = "/content") -> Dict[str, any]:
+def check_disk_space(path: str = "/content") -> Dict[str, Any]:
     """
     Check available disk space at a given path.
     
@@ -640,7 +638,7 @@ def sanitize_file_path(file_path: str) -> str:
     return path
 
 
-def validate_pdf_file(file_path: str) -> Dict[str, any]:
+def validate_pdf_file(file_path: str) -> Dict[str, Any]:
     """
     Validate that a file is a valid PDF.
     
@@ -717,7 +715,7 @@ def validate_pdf_file(file_path: str) -> Dict[str, any]:
 # Utility Functions
 # =============================================================================
 
-def get_mount_info() -> Dict[str, any]:
+def get_mount_info() -> Dict[str, Any]:
     """
     Get information about the current Google Drive mount.
     

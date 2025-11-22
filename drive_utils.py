@@ -430,8 +430,8 @@ def _log_discovery_statistics(papers: Dict[str, PaperRecord], folder_path: str):
             size = os.path.getsize(paper.file_path)
             sizes.append(size)
             total_size += size
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning(f"Could not get size for file '{paper.file_path}': {e}")
     
     # Log statistics
     logger.info("=" * 60)

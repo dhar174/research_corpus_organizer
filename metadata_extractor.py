@@ -735,7 +735,7 @@ def extract_abstract_from_text(text: str) -> Optional[str]:
     
     # Look for abstract section
     # Pattern: "Abstract" (case-insensitive) followed by text
-    pattern = r'(?i)abstract[\s:]*\n\s*(.+?)(?:\n\s*(?:1\.|introduction|keywords|i\.|background)|\Z)'
+    pattern = r'(?i)abstract[\s:]*\n\s*([^\n].{50,2000}?)(?:\n\s*(?:1\.|introduction|keywords|i\.|background)|\Z)'
     
     match = re.search(pattern, text[:5000], re.DOTALL | re.IGNORECASE)
     

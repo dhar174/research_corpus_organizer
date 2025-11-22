@@ -125,8 +125,8 @@ def flatten_paper_record(paper: PaperRecord, config: ExportConfig) -> Dict[str, 
         
         for key, value in data.items():
             if isinstance(value, list):
-                # Join lists as strings
-                if value and isinstance(value[0], str):
+                # Join lists as strings if all elements are strings
+                if value and all(isinstance(item, str) for item in value):
                     flattened[key] = "; ".join(value)
                 else:
                     flattened[key] = json.dumps(value)

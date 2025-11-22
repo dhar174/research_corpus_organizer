@@ -7,7 +7,7 @@ serialized, and validated correctly.
 """
 
 import sys
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
 
 # Add parent directory to path
@@ -19,7 +19,6 @@ from rag_models import (
     PaperChunk,
     TopicNode,
     TopicHierarchy,
-    GraphState,
     StateManager,
     MetadataExtractor,
     StatisticsTracker,

@@ -575,6 +575,8 @@ class TopicNode(BaseModel):
     # Optional centroid embedding for clustering
     centroid: Optional[List[float]] = Field(default=None, description="Topic centroid vector")
     
+    model_config = ConfigDict(validate_assignment=True)
+    
     @field_validator("paper_count", mode="after")
     @classmethod
     def set_paper_count(cls, v, info):
@@ -656,7 +658,8 @@ class TopicHierarchy(BaseModel):
     model_config = ConfigDict(
         json_encoders={
             datetime: lambda v: v.isoformat()
-        }
+        },
+        validate_assignment=True
     )
     
     def get_topic_by_id(self, topic_id: str) -> Optional[TopicNode]:
@@ -1242,6 +1245,7 @@ def load_papers_from_csv(csv_path: str) -> Dict[str, PaperRecord]:
         Dictionary of paper_id -> PaperRecord
     """
     import pandas as pd
+    import ast
     
     df = pd.read_csv(csv_path)
     
@@ -1250,6 +1254,23 @@ def load_papers_from_csv(csv_path: str) -> Dict[str, PaperRecord]:
         paper_dict = row.to_dict()
         # Handle NaN values
         paper_dict = {k: (None if pd.isna(v) else v) for k, v in paper_dict.items()}
+        
+        # Handle list fields (authors)
+        if 'authors' in paper_dict and isinstance(paper_dict['authors'], str):
+            try:
+                paper_dict['authors'] = ast.literal_eval(paper_dict['authors'])
+            except (ValueError, SyntaxError):
+                # If parsing fails, treat as empty list
+                paper_dict['authors'] = None
+        
+        # Handle dict fields (raw_text_stats)
+        if 'raw_text_stats' in paper_dict and isinstance(paper_dict['raw_text_stats'], str):
+            try:
+                paper_dict['raw_text_stats'] = ast.literal_eval(paper_dict['raw_text_stats'])
+            except (ValueError, SyntaxError):
+                # If parsing fails, use empty dict
+                paper_dict['raw_text_stats'] = {}
+        
         paper = PaperRecord.from_dict(paper_dict)
         papers[paper.id] = paper
     

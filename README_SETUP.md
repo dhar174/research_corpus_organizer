@@ -1,8 +1,8 @@
 # RAG PDF Research Corpus System - Setup Guide
 
-**Version:** 1.0  
-**Date:** 2025-11-21  
-**Status:** Phase 0 and Phase 1 Complete
+**Version:** 1.1  
+**Date:** 2025-11-22  
+**Status:** Phases 0, 1, and 2 Complete
 
 ## Overview
 
@@ -18,9 +18,14 @@ This project implements a comprehensive system for processing and organizing aca
 research_corpus_organizer/
 ├── rag_pdf_system.ipynb          # Main Google Colab notebook
 ├── rag_models.py                  # Data models and schemas (Phase 1)
+├── drive_utils.py                 # Google Drive integration (Phase 2)
+├── test_phase2.py                 # Phase 2 test suite
+├── validate_models.py             # Phase 1 validation script
 ├── notebook_builder.py            # Script to generate complete notebook
 ├── FINAL_NOTEBOOK_ACTION_PLAN.md  # Complete implementation plan
 ├── rag_pdf_system_spec_v_2.md     # Technical specification
+├── PHASE1_COMPLETION.md           # Phase 1 completion report
+├── PHASE2_COMPLETION.md           # Phase 2 completion report
 └── README_SETUP.md                # This file
 ```
 
@@ -64,6 +69,24 @@ All core data structures are defined in `rag_models.py`:
    - ErrorHandler: Error logging and tracking
    - IDGenerator: Generate unique IDs
 
+### Phase 2: Google Drive Integration ✓
+
+All Google Drive and PDF discovery functionality is in `drive_utils.py`:
+
+1. **Drive Mounting:**
+   - mount_google_drive(): Mount Google Drive in Colab
+   - validate_mount(): Validate mount status
+   - display_folder_structure(): Show folder tree
+2. **PDF Discovery:**
+   - discover_pdfs(): Recursively find all PDFs
+   - generate_paper_id(): Create unique deterministic IDs
+   - resolve_folder_path(): Convert relative to absolute paths
+3. **File Management:**
+   - validate_file_access(): Check file accessibility
+   - check_disk_space(): Monitor available space
+   - sanitize_file_path(): Normalize file paths
+   - validate_pdf_file(): Verify PDF files
+
 ## Usage
 
 ### Option 1: Use the Partial Notebook (Current State)
@@ -81,9 +104,9 @@ All core data structures are defined in `rag_models.py`:
    # Cell 5: Import libraries
    ```
 
-3. **Import data models:**
+3. **Import data models and utilities:**
    ```python
-   # In a new cell, import the models
+   # Import Phase 1 models
    from rag_models import (
        RunConfig,
        PaperRecord,
@@ -96,6 +119,14 @@ All core data structures are defined in `rag_models.py`:
        StatisticsTracker,
        ErrorHandler,
        IDGenerator
+   )
+   
+   # Import Phase 2 utilities
+   from drive_utils import (
+       mount_google_drive,
+       discover_pdfs,
+       validate_file_access,
+       check_disk_space
    )
    ```
 
@@ -118,6 +149,30 @@ All core data structures are defined in `rag_models.py`:
    ```python
    state = StateManager.create_initial_state(config)
    print(f"Initial state created with {len(state['papers'])} papers")
+   ```
+
+6. **Mount Google Drive and discover PDFs:**
+   ```python
+   # Mount Google Drive
+   from drive_utils import mount_google_drive, discover_pdfs
+   
+   if mount_google_drive():
+       print("Drive mounted successfully!")
+       
+       # Discover PDFs
+       papers = discover_pdfs(
+           config.drive_folder_path,
+           config,
+           show_progress=True
+       )
+       
+       print(f"Found {len(papers)} PDFs")
+       
+       # Add papers to state
+       for paper_id, paper in papers.items():
+           state = StateManager.add_paper(state, paper)
+       
+       print(f"State now has {len(state['papers'])} papers")
    ```
 
 ### Option 2: Generate Complete Notebook (Requires Python Environment)
@@ -233,7 +288,6 @@ The `RunConfig` model includes all necessary parameters:
 
 The following phases are planned for implementation:
 
-- **Phase 2:** Google Drive Integration
 - **Phase 3:** PDF Parsing and Chunking
 - **Phase 4:** Metadata Extraction
 - **Phase 5:** Embedding Generation and FAISS Index
@@ -274,6 +328,8 @@ This allows for flexible development while maintaining a clean separation of con
 
 To verify your setup is working:
 
+### Test Phase 1 Models
+
 ```python
 # Test creating a config
 from rag_models import RunConfig
@@ -311,7 +367,43 @@ print(f"✓ Extracted arXiv ID: {arxiv_id}")
 stats = StatisticsTracker.calculate_text_stats("Test text" * 100, page_count=1)
 print(f"✓ Text stats: {stats}")
 
-print("\n✓✓✓ All tests passed! Setup is working correctly.")
+print("\n✓✓✓ Phase 1 tests passed!")
+```
+
+### Test Phase 2 Drive Integration
+
+```python
+# Test drive utilities (note: requires Colab environment for mount)
+from drive_utils import (
+    generate_paper_id,
+    sanitize_file_path,
+    check_disk_space,
+    validate_file_access
+)
+
+# Test paper ID generation
+test_id = generate_paper_id("/test/path/paper.pdf")
+print(f"✓ Generated ID: {test_id}")
+
+# Test path sanitization
+clean_path = sanitize_file_path("~/folder/../test/./file.pdf")
+print(f"✓ Sanitized path: {clean_path}")
+
+# Test disk space check
+space = check_disk_space()
+print(f"✓ Free space: {space['free_gb']:.2f} GB")
+
+print("\n✓✓✓ Phase 2 tests passed!")
+```
+
+### Run Complete Test Suite
+
+```bash
+# Test Phase 1
+python validate_models.py
+
+# Test Phase 2
+python test_phase2.py
 ```
 
 ## Troubleshooting
@@ -347,6 +439,8 @@ If dependencies are missing:
 
 - **Technical Specification:** See `rag_pdf_system_spec_v_2.md`
 - **Implementation Plan:** See `FINAL_NOTEBOOK_ACTION_PLAN.md`
+- **Phase 1 Completion:** See `PHASE1_COMPLETION.md`
+- **Phase 2 Completion:** See `PHASE2_COMPLETION.md`
 - **Issues:** Report issues on the GitHub repository
 
 ## License
@@ -355,6 +449,6 @@ This project is part of the research_corpus_organizer repository.
 
 ---
 
-**Status:** Phase 0 and Phase 1 Complete  
-**Last Updated:** 2025-11-21  
-**Version:** 1.0
+**Status:** Phases 0, 1, and 2 Complete  
+**Last Updated:** 2025-11-22  
+**Version:** 1.1

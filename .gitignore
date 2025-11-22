@@ -43,7 +43,10 @@ htmlcov/
 # Temporary files
 *.tmp
 *.bak
+
+# Test files (but keep test_phase*.py)
 test_*.py
+!test_phase*.py
 
 # OS
 .DS_Store

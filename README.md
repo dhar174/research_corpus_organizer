@@ -15,11 +15,12 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phase 0 and Phase 1 Complete ✓
+**Current Phase:** Phases 0, 1, and 2 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
-- 🔄 Phases 2-22: PDF processing, embeddings, taxonomy, RAG interface (planned)
+- ✅ Phase 2: Google Drive integration and PDF discovery (COMPLETE - see PHASE2_COMPLETION.md)
+- 🔄 Phases 3-22: PDF parsing, embeddings, taxonomy, RAG interface (planned)
 
 ## Quick Start
 
@@ -69,22 +70,35 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - TopicHierarchy: 3-tier taxonomy
   - GraphState: LangGraph workflow state
   - Helper classes: MetadataExtractor, StatisticsTracker, ErrorHandler, IDGenerator
+- `drive_utils.py` - Google Drive integration and PDF discovery (Phase 2)
+  - mount_google_drive: Mount Google Drive in Colab
+  - discover_pdfs: Recursively find and catalog PDFs
+  - validate_file_access: File validation utilities
+  - check_disk_space: Disk space monitoring
+  - Helper functions for file management
 
 ### Utilities
 - `notebook_builder.py` - Generate complete standalone notebooks
 
 ## Features
 
-### Implemented (Phase 0 & 1)
+### Implemented (Phases 0, 1, & 2)
 - ✅ Environment inspection (Python version, GPU/CPU, system resources)
 - ✅ Dependency installation (18 packages with version pinning)
 - ✅ Import management with error handling
 - ✅ Comprehensive data models with Pydantic validation
 - ✅ Configuration schema with sensible defaults
 - ✅ Helper utilities for metadata extraction and statistics
+- ✅ Google Drive mounting and validation
+- ✅ PDF discovery with recursive folder traversal
+- ✅ Unique paper ID generation (deterministic hashing)
+- ✅ Initial PaperRecord creation
+- ✅ Duplicate file handling
+- ✅ File access validation
+- ✅ Disk space monitoring
+- ✅ PDF file validation
 
-### Planned (Phases 2-22)
-- 📋 Google Drive integration and PDF discovery
+### Planned (Phases 3-22)
 - 📋 PDF parsing with PyMuPDF and OCR fallback
 - 📋 Section-aware text chunking
 - 📋 Metadata extraction (arXiv, DOI, CrossRef)
@@ -194,8 +208,20 @@ See repository license.
 
 This project follows a phased implementation approach. See FINAL_NOTEBOOK_ACTION_PLAN.md for details on each phase.
 
+## Running Tests
+
+To validate the implementation:
+
+```bash
+# Test Phase 1 models
+python validate_models.py
+
+# Test Phase 2 Google Drive integration
+python test_phase2.py
+```
+
 ---
 
-**Version:** 1.0  
-**Last Updated:** 2025-11-21  
-**Status:** Phase 0 & 1 Complete - Ready for Phase 2 Development
+**Version:** 1.1  
+**Last Updated:** 2025-11-22  
+**Status:** Phases 0, 1, & 2 Complete - Ready for Phase 3 Development

@@ -412,7 +412,7 @@ for issue in validation['issues']:
 - Tier 3 (96 topics): ~$2.40
 - **Total: ~$3.90**
 
-*Costs based on gpt-5.1-mini pricing as of Nov 2025*
+*Costs based on GPT-4 Turbo pricing as of January 2025. Update with actual model pricing when using gpt-5.1 or other models.*
 
 ---
 

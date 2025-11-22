@@ -38,41 +38,22 @@ from rag_models import (
 
 try:
     from topic_taxonomy import (
-        # Step 8.1
-        PaperEmbeddingGenerator,
         generate_paper_embeddings,
-        
-        # Step 8.2
-        determine_optimal_k,
-        cluster_papers,
         build_tier1_taxonomy,
-        
-        # Step 8.3
-        TopicLabelGenerator,
         generate_tier1_labels,
-        
-        # Step 8.4-8.7
         build_tier2_taxonomy,
         build_tier3_taxonomy,
         generate_tier2_labels,
         generate_tier3_labels,
-        
-        # Step 8.8
-        TaxonomyBuilder,
         build_complete_taxonomy,
         validate_taxonomy_structure,
-        
-        # Step 8.9
-        TaxonomyVisualizer,
         visualize_taxonomy,
         generate_taxonomy_statistics,
-        
-        # Worker
-        taxonomy_construction_worker,
     )
     TAXONOMY_MODULE_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: topic_taxonomy module not available: {e}")
+    TAXONOMY_MODULE_AVAILABLE = False
     TAXONOMY_MODULE_AVAILABLE = False
 
 try:
@@ -156,7 +137,6 @@ def create_sample_embeddings(n_embeddings, embedding_dim=512):
     np.random.seed(42)
     
     # Create embeddings with 5 distinct clusters
-    n_per_cluster = n_embeddings // 5
     embeddings_list = []
     
     cluster_centers = [

@@ -15,9 +15,8 @@ Mock tests are provided for environments without these dependencies.
 """
 
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import json
 
 # Add parent directory to path
@@ -494,7 +493,7 @@ def test_validate_taxonomy_structure():
     )
     
     validation = validate_taxonomy_structure(hierarchy)
-    assert validation['valid'] == True
+    assert validation['valid']
     assert validation['tier1_count'] == 1
     assert validation['tier2_count'] == 1
     assert validation['tier3_count'] == 1

@@ -58,6 +58,7 @@ try:
     SEABORN_AVAILABLE = True
 except ImportError:
     SEABORN_AVAILABLE = False
+    sns = None  # For type checking
 
 # Progress bar
 try:
@@ -73,7 +74,6 @@ from rag_models import (
     TopicHierarchy,
     GraphState,
     RunConfig,
-    StateManager,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,6 @@ logger = logging.getLogger(__name__)
 __all__ = [
     # Step 8.1: Paper-Level Embeddings
     'generate_paper_embeddings',
-    'aggregate_chunk_embeddings',
     'PaperEmbeddingGenerator',
     
     # Step 8.2: Tier 1 Clustering
@@ -655,11 +654,20 @@ Format your response as JSON:
             logger.info(f"Generated Tier {tier} label: {label}")
             return {'label': label, 'description': description}
         
-        except Exception as e:
-            logger.error(f"Error generating topic label: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response from GPT: {e}")
             return {
                 'label': f'Tier {tier} Topic',
-                'description': 'Error generating description'
+                'description': f'Error parsing response: {str(e)}'
+            }
+        except Exception as e:
+            logger.error(f"Error generating topic label: {e}")
+            # Re-raise critical errors like authentication failures
+            if 'authentication' in str(e).lower() or 'api_key' in str(e).lower():
+                raise
+            return {
+                'label': f'Tier {tier} Topic',
+                'description': f'Error: {str(e)}'
             }
 
 
@@ -741,12 +749,41 @@ def sample_representative_papers(
     n_samples: int = 5
 ) -> List[PaperRecord]:
     """
-    Convenience function to sample representative papers.
+    Convenience function to sample representative papers (closest to centroid).
+    
+    Note: This function only performs sampling logic and does not make API calls.
+    It extracts the sampling method from TopicLabelGenerator for standalone use.
+    
+    Args:
+        cluster_paper_ids: Paper IDs in this cluster
+        papers: All papers dict
+        centroids: Cluster centroids
+        paper_embeddings: Paper embeddings dict
+        cluster_id: Current cluster ID
+        n_samples: Number of papers to sample
+        
+    Returns:
+        List of representative PaperRecords
     """
-    generator = TopicLabelGenerator(api_key="dummy", model="gpt-5.1-mini")
-    return generator.sample_representative_papers(
-        cluster_paper_ids, papers, centroids, paper_embeddings, cluster_id, n_samples
-    )
+    centroid = centroids[cluster_id]
+    
+    # Calculate distances to centroid
+    distances = []
+    for paper_id in cluster_paper_ids:
+        if paper_id in paper_embeddings:
+            embedding = paper_embeddings[paper_id]
+            distance = np.linalg.norm(embedding - centroid)
+            distances.append((distance, paper_id))
+    
+    # Sort by distance and take closest
+    distances.sort()
+    top_paper_ids = [pid for _, pid in distances[:n_samples]]
+    
+    # Get paper records
+    representative_papers = [papers[pid] for pid in top_paper_ids if pid in papers]
+    
+    logger.info(f"Sampled {len(representative_papers)} representative papers for cluster {cluster_id}")
+    return representative_papers
 
 
 # =============================================================================

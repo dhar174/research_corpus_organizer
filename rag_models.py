@@ -432,9 +432,16 @@ class PaperRecord(BaseModel):
         if isinstance(data.get('last_updated'), str):
             data['last_updated'] = datetime.fromisoformat(data['last_updated'])
         if isinstance(data.get('publish_date'), str):
-            from dateutil import parser as date_parser
-            data['publish_date'] = date_parser.parse(data['publish_date']).date()
-        
+            try:
+                from dateutil import parser as date_parser
+                data['publish_date'] = date_parser.parse(data['publish_date']).date()
+            except ModuleNotFoundError:
+                # Fallback: try ISO format
+                try:
+                    data['publish_date'] = datetime.strptime(data['publish_date'], "%Y-%m-%d").date()
+                except ValueError as e:
+                    raise ValueError(f"Could not parse publish_date '{data['publish_date']}'. "
+                                     "Install python-dateutil for more formats.") from e
         return cls(**data)
 
 

@@ -493,8 +493,9 @@ def process_approval_decision(
     
     if decision not in valid_decisions:
         logger.warning(f"Invalid decision '{decision}', defaulting to 'reject'")
+        original_decision = decision
         decision = "reject"
-        notes = f"Invalid decision provided: {decision}"
+        notes = f"Invalid decision provided: {original_decision}"
     
     approval = ApprovalDecision(
         action=decision,

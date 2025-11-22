@@ -22,6 +22,34 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Export list for clean imports
+__all__ = [
+    # Configuration
+    'RunConfig',
+    'create_default_config',
+    
+    # Core Models
+    'PaperRecord',
+    'PaperChunk',
+    'TopicNode',
+    'TopicHierarchy',
+    'GraphState',
+    
+    # State Management
+    'StateManager',
+    
+    # Helper Classes
+    'MetadataExtractor',
+    'StatisticsTracker',
+    'ErrorHandler',
+    'IDGenerator',
+    
+    # Utility Functions
+    'validate_paper_record',
+    'export_papers_to_csv',
+    'load_papers_from_csv',
+]
+
 
 # =============================================================================
 # Configuration Schema
@@ -156,6 +184,82 @@ class RunConfig(BaseModel):
         if v <= 0:
             raise ValueError("max_chunks_per_paper must be positive")
         return v
+    
+    @field_validator("chunk_size_chars", "chunk_overlap_chars")
+    @classmethod
+    def validate_chunk_params(cls, v):
+        if v <= 0:
+            raise ValueError("Chunk size parameters must be positive")
+        return v
+    
+    @field_validator("max_tokens_per_summary", "max_tokens_per_classification")
+    @classmethod
+    def validate_token_limits(cls, v):
+        if v <= 0:
+            raise ValueError("Token limits must be positive")
+        return v
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert RunConfig to dictionary for serialization.
+        
+        Returns:
+            Dictionary representation with all fields.
+        """
+        return self.model_dump(mode='json')
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'RunConfig':
+        """
+        Create RunConfig from dictionary.
+        
+        Args:
+            data: Dictionary with configuration data
+            
+        Returns:
+            RunConfig instance
+        """
+        return cls(**data)
+    
+    def display_config(self) -> str:
+        """
+        Get a formatted string representation of the configuration.
+        
+        Returns:
+            Formatted configuration string
+        """
+        lines = [
+            "=" * 60,
+            "RAG PDF System Configuration",
+            "=" * 60,
+            f"Drive folder: {self.drive_folder_path}",
+            f"Max papers per run: {self.max_papers_per_run or 'unlimited'}",
+            f"Max pages per paper: {self.max_pages_per_paper or 'unlimited'}",
+            f"Max chunks per paper: {self.max_chunks_per_paper}",
+            "",
+            "Models:",
+            f"  Summary: {self.summary_model}",
+            f"  Taxonomy: {self.taxonomy_model}",
+            f"  Classification: {self.classification_model}",
+            f"  Embedding: {self.embedding_model}",
+            "",
+            "Reasoning Effort:",
+            f"  Summary: {self.summary_reasoning_effort}",
+            f"  Taxonomy: {self.taxonomy_reasoning_effort}",
+            f"  Classification: {self.classification_reasoning_effort}",
+            "",
+            "Clustering:",
+            f"  Tier 1 target k: {self.cluster_tier1_target_k}",
+            f"  Tier 2 target k: {self.cluster_tier2_target_k}",
+            f"  Tier 3 target k: {self.cluster_tier3_target_k}",
+            "",
+            "Features:",
+            f"  OCR fallback: {self.enable_ocr_fallback}",
+            f"  Deep analysis: {self.enable_deep_analysis_pass}",
+            f"  Taxonomy approval: {self.taxonomy_approval_required}",
+            "=" * 60
+        ]
+        return "\n".join(lines)
 
 
 # =============================================================================
@@ -279,12 +383,59 @@ class PaperRecord(BaseModel):
             raise ValueError("Confidence scores must be between 0 and 1")
         return v
     
+    @field_validator("year")
+    @classmethod
+    def validate_year(cls, v):
+        if v is not None:
+            current_year = datetime.now().year
+            if not (1900 <= v <= current_year + 1):
+                raise ValueError(f"Year must be between 1900 and {current_year + 1}")
+        return v
+    
+    @field_validator("retry_count")
+    @classmethod
+    def validate_retry_count(cls, v):
+        if v < 0:
+            raise ValueError("retry_count cannot be negative")
+        return v
+    
     model_config = ConfigDict(
         json_encoders={
             datetime: lambda v: v.isoformat(),
             date: lambda v: v.isoformat()
         }
     )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert PaperRecord to dictionary for serialization.
+        
+        Returns:
+            Dictionary representation with all fields.
+        """
+        return self.model_dump(mode='json')
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PaperRecord':
+        """
+        Create PaperRecord from dictionary.
+        
+        Args:
+            data: Dictionary with paper data
+            
+        Returns:
+            PaperRecord instance
+        """
+        # Handle datetime fields
+        if isinstance(data.get('created_at'), str):
+            data['created_at'] = datetime.fromisoformat(data['created_at'])
+        if isinstance(data.get('last_updated'), str):
+            data['last_updated'] = datetime.fromisoformat(data['last_updated'])
+        if isinstance(data.get('publish_date'), str):
+            from dateutil import parser as date_parser
+            data['publish_date'] = date_parser.parse(data['publish_date']).date()
+        
+        return cls(**data)
 
 
 # =============================================================================
@@ -352,6 +503,50 @@ class PaperChunk(BaseModel):
         if v.lower() not in valid_sections:
             return "other"
         return v.lower()
+    
+    @field_validator("page_start", "page_end")
+    @classmethod
+    def validate_page_numbers(cls, v):
+        if v < 0:
+            raise ValueError("Page numbers must be non-negative")
+        return v
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert PaperChunk to dictionary for serialization.
+        
+        Returns:
+            Dictionary representation with all fields.
+        """
+        return self.model_dump(mode='json')
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PaperChunk':
+        """
+        Create PaperChunk from dictionary.
+        
+        Args:
+            data: Dictionary with chunk data
+            
+        Returns:
+            PaperChunk instance
+        """
+        return cls(**data)
+    
+    def get_display_text(self, max_chars: int = 100) -> str:
+        """
+        Get truncated text for display purposes.
+        
+        Args:
+            max_chars: Maximum characters to return
+            
+        Returns:
+            Truncated text with ellipsis if needed
+        """
+        text = self.cleaned_text if self.cleaned_text else self.text
+        if len(text) <= max_chars:
+            return text
+        return text[:max_chars] + "..."
 
 
 # =============================================================================
@@ -379,6 +574,42 @@ class TopicNode(BaseModel):
         if hasattr(info, 'data') and "paper_ids" in info.data:
             return len(info.data["paper_ids"])
         return v
+    
+    def add_paper(self, paper_id: str) -> None:
+        """
+        Add a paper to this topic.
+        
+        Args:
+            paper_id: ID of paper to add
+        """
+        if paper_id not in self.paper_ids:
+            self.paper_ids.append(paper_id)
+            self.paper_count = len(self.paper_ids)
+    
+    def remove_paper(self, paper_id: str) -> bool:
+        """
+        Remove a paper from this topic.
+        
+        Args:
+            paper_id: ID of paper to remove
+            
+        Returns:
+            True if paper was removed, False if not found
+        """
+        if paper_id in self.paper_ids:
+            self.paper_ids.remove(paper_id)
+            self.paper_count = len(self.paper_ids)
+            return True
+        return False
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return self.model_dump(mode='json')
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TopicNode':
+        """Create from dictionary."""
+        return cls(**data)
 
 
 class TopicHierarchy(BaseModel):
@@ -444,6 +675,117 @@ class TopicHierarchy(BaseModel):
         if parent_tier2_id:
             return [t for t in self.tier3 if t.parent_id == parent_tier2_id]
         return self.tier3
+    
+    def add_topic(self, tier: int, topic: TopicNode) -> None:
+        """
+        Add a topic to the specified tier.
+        
+        Args:
+            tier: Tier number (1, 2, or 3)
+            topic: TopicNode to add
+            
+        Raises:
+            ValueError: If tier is invalid
+        """
+        if tier == 1:
+            self.tier1.append(topic)
+        elif tier == 2:
+            self.tier2.append(topic)
+        elif tier == 3:
+            self.tier3.append(topic)
+        else:
+            raise ValueError(f"Invalid tier: {tier}. Must be 1, 2, or 3.")
+    
+    def validate_hierarchy(self) -> Dict[str, Any]:
+        """
+        Validate the hierarchy structure.
+        
+        Returns:
+            Dictionary with validation results and any issues found.
+        """
+        issues = []
+        
+        # Check parent references in Tier 2
+        tier1_ids = {t.id for t in self.tier1}
+        for t2 in self.tier2:
+            if t2.parent_id and t2.parent_id not in tier1_ids:
+                issues.append(f"Tier 2 topic {t2.id} has invalid parent {t2.parent_id}")
+        
+        # Check parent references in Tier 3
+        tier2_ids = {t.id for t in self.tier2}
+        for t3 in self.tier3:
+            if t3.parent_id and t3.parent_id not in tier2_ids:
+                issues.append(f"Tier 3 topic {t3.id} has invalid parent {t3.parent_id}")
+        
+        # Check for duplicate IDs
+        all_ids = [t.id for t in self.tier1 + self.tier2 + self.tier3]
+        if len(all_ids) != len(set(all_ids)):
+            issues.append("Duplicate topic IDs found")
+        
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "tier1_count": len(self.tier1),
+            "tier2_count": len(self.tier2),
+            "tier3_count": len(self.tier3),
+            "total_topics": len(all_ids)
+        }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert TopicHierarchy to dictionary for serialization.
+        
+        Returns:
+            Dictionary representation with all fields.
+        """
+        return self.model_dump(mode='json')
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TopicHierarchy':
+        """
+        Create TopicHierarchy from dictionary.
+        
+        Args:
+            data: Dictionary with hierarchy data
+            
+        Returns:
+            TopicHierarchy instance
+        """
+        # Handle datetime fields
+        if isinstance(data.get('created_at'), str):
+            data['created_at'] = datetime.fromisoformat(data['created_at'])
+        
+        # Convert tier lists to TopicNode objects
+        if 'tier1' in data:
+            data['tier1'] = [TopicNode(**t) if isinstance(t, dict) else t for t in data['tier1']]
+        if 'tier2' in data:
+            data['tier2'] = [TopicNode(**t) if isinstance(t, dict) else t for t in data['tier2']]
+        if 'tier3' in data:
+            data['tier3'] = [TopicNode(**t) if isinstance(t, dict) else t for t in data['tier3']]
+        
+        return cls(**data)
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about the taxonomy.
+        
+        Returns:
+            Dictionary with taxonomy statistics.
+        """
+        return {
+            "taxonomy_version": self.taxonomy_version,
+            "created_at": self.created_at.isoformat(),
+            "total_papers": self.total_papers,
+            "tier1_topics": len(self.tier1),
+            "tier2_topics": len(self.tier2),
+            "tier3_topics": len(self.tier3),
+            "total_topics": len(self.tier1) + len(self.tier2) + len(self.tier3),
+            "clustering_method": self.clustering_method,
+            "labeling_model": self.labeling_model,
+            "avg_papers_per_tier1": sum(t.paper_count for t in self.tier1) / len(self.tier1) if self.tier1 else 0,
+            "avg_papers_per_tier2": sum(t.paper_count for t in self.tier2) / len(self.tier2) if self.tier2 else 0,
+            "avg_papers_per_tier3": sum(t.paper_count for t in self.tier3) / len(self.tier3) if self.tier3 else 0,
+        }
 
 
 # =============================================================================
@@ -766,3 +1108,142 @@ class IDGenerator:
     def generate_chunk_id(paper_id: str, chunk_index: int) -> str:
         """Generate unique chunk ID."""
         return f"{paper_id}_chunk_{chunk_index:04d}"
+    
+    @staticmethod
+    def generate_topic_id(tier: int, label: str, index: int) -> str:
+        """
+        Generate topic ID.
+        
+        Args:
+            tier: Tier number (1, 2, or 3)
+            label: Topic label
+            index: Topic index within tier
+            
+        Returns:
+            Topic ID string
+        """
+        # Clean label for use in ID
+        clean_label = "".join(c if c.isalnum() else "_" for c in label)
+        clean_label = clean_label[:20]  # Limit length
+        return f"T{tier}_{clean_label}_{index}"
+
+
+# =============================================================================
+# Additional Utility Functions
+# =============================================================================
+
+def create_default_config(**overrides) -> RunConfig:
+    """
+    Create a RunConfig with default values and optional overrides.
+    
+    Args:
+        **overrides: Keyword arguments to override default values
+        
+    Returns:
+        RunConfig instance
+        
+    Example:
+        config = create_default_config(
+            drive_folder_path="my_pdfs",
+            max_papers_per_run=10
+        )
+    """
+    return RunConfig(**overrides)
+
+
+def validate_paper_record(paper: PaperRecord) -> Dict[str, Any]:
+    """
+    Validate a paper record and return validation results.
+    
+    Args:
+        paper: PaperRecord to validate
+        
+    Returns:
+        Dictionary with validation results
+    """
+    issues = []
+    warnings = []
+    
+    # Check required metadata
+    if not paper.title:
+        warnings.append("Missing title")
+    if not paper.authors:
+        warnings.append("Missing authors")
+    if not paper.publish_date:
+        warnings.append("Missing publication date")
+    
+    # Check processing status
+    if paper.processing_status == "failed" and not paper.error_reason:
+        issues.append("Failed status but no error reason provided")
+    
+    # Check topic classifications
+    if paper.processing_status == "classified":
+        if not paper.tier1_topic:
+            issues.append("Classified but missing Tier 1 topic")
+        if not paper.tier2_topic:
+            warnings.append("Classified but missing Tier 2 topic")
+        if not paper.tier3_topic:
+            warnings.append("Classified but missing Tier 3 topic")
+    
+    # Check confidence scores
+    if paper.tier1_topic and paper.tier1_confidence is None:
+        warnings.append("Tier 1 topic assigned but no confidence score")
+    
+    return {
+        "valid": len(issues) == 0,
+        "issues": issues,
+        "warnings": warnings,
+        "has_metadata": bool(paper.title and paper.authors),
+        "has_summary": bool(paper.full_summary),
+        "has_topics": bool(paper.tier1_topic),
+    }
+
+
+def export_papers_to_csv(papers: Dict[str, PaperRecord], output_path: str) -> str:
+    """
+    Export papers to CSV file.
+    
+    Args:
+        papers: Dictionary of paper_id -> PaperRecord
+        output_path: Path to output CSV file
+        
+    Returns:
+        Path to created CSV file
+    """
+    import pandas as pd
+    
+    # Convert papers to list of dicts
+    data = [paper.to_dict() for paper in papers.values()]
+    
+    # Create DataFrame
+    df = pd.DataFrame(data)
+    
+    # Save to CSV
+    df.to_csv(output_path, index=False)
+    
+    return output_path
+
+
+def load_papers_from_csv(csv_path: str) -> Dict[str, PaperRecord]:
+    """
+    Load papers from CSV file.
+    
+    Args:
+        csv_path: Path to CSV file
+        
+    Returns:
+        Dictionary of paper_id -> PaperRecord
+    """
+    import pandas as pd
+    
+    df = pd.read_csv(csv_path)
+    
+    papers = {}
+    for _, row in df.iterrows():
+        paper_dict = row.to_dict()
+        # Handle NaN values
+        paper_dict = {k: (None if pd.isna(v) else v) for k, v in paper_dict.items()}
+        paper = PaperRecord.from_dict(paper_dict)
+        papers[paper.id] = paper
+    
+    return papers

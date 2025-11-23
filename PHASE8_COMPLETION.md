@@ -10,7 +10,7 @@
 
 Phase 8 has been successfully completed with comprehensive topic modeling and taxonomy construction implemented in `topic_taxonomy.py`. All requirements from FINAL_NOTEBOOK_ACTION_PLAN.md Phase 8 and the GitHub issue have been implemented and tested.
 
-This phase provides a complete 3-tier hierarchical topic taxonomy using clustering algorithms and GPT-5.1 for generating human-readable topic labels and descriptions.
+This phase provides a complete 3-tier hierarchical topic taxonomy using clustering algorithms and GPT-5 for generating human-readable topic labels and descriptions.
 
 ---
 
@@ -130,19 +130,19 @@ for cluster in tier1_clusters:
 
 ---
 
-### Step 8.3: Generate Tier 1 Labels with GPT-5.1 ✅
+### Step 8.3: Generate Tier 1 Labels with GPT-5 ✅
 
 **Status:** Complete with context-aware labeling
 
 **Implementation:**
 
 #### `TopicLabelGenerator` Class
-Generates topic labels and descriptions using GPT-5.1.
+Generates topic labels and descriptions using GPT-5.
 
 **Features:**
 - ✅ Samples representative papers (closest to centroid)
 - ✅ Extracts titles and abstracts for context
-- ✅ Uses GPT-5.1 with configurable reasoning effort
+- ✅ Uses GPT-5 with configurable reasoning effort
 - ✅ Generates concise labels (2-4 words)
 - ✅ Generates descriptive paragraphs (2-3 sentences)
 - ✅ Structured JSON output
@@ -163,7 +163,7 @@ Generates labels for all Tier 1 topics.
 1. ✅ Initializes TopicLabelGenerator
 2. ✅ For each cluster:
    - Samples representative papers
-   - Generates label and description via GPT-5.1
+   - Generates label and description via GPT-5
    - Creates TopicNode with metadata
    - Assigns topic ID (T1_XX format)
 3. ✅ Rate limiting (0.5s between calls)

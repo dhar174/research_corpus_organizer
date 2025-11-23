@@ -8,7 +8,7 @@ Examples include:
 - Generating paper-level embeddings
 - Building Tier 1 taxonomy (broad topics)
 - Building Tier 2 and Tier 3 taxonomies (hierarchical)
-- Generating topic labels with GPT-5.1
+- Generating topic labels with GPT-5
 - Validating taxonomy structure
 - Visualizing taxonomy
 - Complete taxonomy construction pipeline

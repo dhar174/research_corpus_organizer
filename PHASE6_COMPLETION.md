@@ -16,19 +16,19 @@ Phase 6 has been successfully completed with comprehensive summarization functio
 
 ### Step 6.1: Create Summary Generator Node ✅
 
-**Status:** Complete with GPT-5.1 integration, reasoning effort, and retry logic
+**Status:** Complete with GPT-5 integration, reasoning effort, and retry logic
 
 **Implementation:**
 
 #### `SummaryGenerator` Class
-- Handles summary generation using OpenAI API with GPT-5.1
+- Handles summary generation using OpenAI API with GPT-5
 - Supports configurable reasoning effort levels (none, low, medium, high)
 - Implements exponential backoff retry logic
 - Tracks token usage and cost estimation
 - Rate limiting to respect API guidelines
 
 **Features:**
-- ✅ OpenAI client initialization with GPT-5.1 support
+- ✅ OpenAI client initialization with GPT-5 support
 - ✅ Configurable reasoning effort for better quality summaries
 - ✅ Rate limiting with configurable delay (default: 1.0s)
 - ✅ Exponential backoff retry (max 3 attempts)

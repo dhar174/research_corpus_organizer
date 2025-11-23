@@ -154,3 +154,33 @@ to add small, clearly-justified fields if required by ingestion logic.
 
 Always prefer small, incremental edits aligned with the plan and keep logging
 and error messages clear and actionable.
+---------------------------------
+
+## OpenAI & Responses API usage (data-ingestion-agent)
+
+When this agent writes code that touches OpenAI:
+
+1. **Embeddings for chunks and papers**
+   - Use the centralized `embed_texts(...)` helper (or equivalent) defined in the setup phase.
+   - Ensure it calls:
+     - `client.embeddings.create({ model: config.embedding_model, input: chunk_texts })`.
+   - Batch multiple chunks per call instead of one call per chunk, respecting max input size.
+
+2. **LLM-assisted metadata normalization (optional)**
+   - If you use LLMs to normalize or enrich metadata (e.g. cleaning titles, categorizing venues):
+     - Call `client.responses.create` with:
+       - `model: config.default_model` (default `"gpt-5-mini"`).
+       - A **JSON schema** via `response_format` for strongly-typed outputs.
+     - Never introduce new `chat.completions` calls.
+
+3. **Batch API for large document sets**
+   - For very large ingestion runs that require LLM work per document (e.g. metadata normalization across thousands of papers):
+     - Generate a JSONL file where each line is a `POST /v1/responses` body with a `custom_id`.
+     - Use:
+       - `files.create({ file: fs.createReadStream("input.jsonl"), purpose: "batch" })`.
+       - `batches.create({ input_file_id: file.id, endpoint: "/v1/responses" })`.
+     - Poll the batch, then map outputs back to papers using `custom_id`.
+
+4. **No interactive flex in ingestion**
+   - Do NOT use flex processing for ingestion tasks that are already offline/batchable; prefer the Batch API instead.
+   - Keep ingestion-time OpenAI usage strictly **non-interactive** and cost-efficient.

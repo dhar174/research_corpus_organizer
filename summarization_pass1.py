@@ -476,7 +476,7 @@ class SummaryGenerator:
         # Pricing as of Nov 2025 (approximate)
         cost_per_1m_tokens = {
             "gpt-5-mini": 0.15,  # Placeholder pricing
-            "gpt-5.1": 0.30,       # Placeholder pricing (note: GPT-5.1 is separate from GPT-5-mini)
+            "gpt-5.1": 0.30,       # Placeholder pricing (note: GPT-5.1 is a separate model from gpt-5-mini)
             "gpt-4-turbo": 10.00,
             "gpt-4": 30.00,
         }

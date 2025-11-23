@@ -80,7 +80,7 @@ def example_cost_estimation():
     
     # Estimate for different models
     models = [
-        "gpt-5.1-mini",
+        "gpt-5-mini",
         "gpt-5.1",
         "gpt-4-turbo",
     ]

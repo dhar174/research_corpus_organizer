@@ -91,15 +91,15 @@ class RunConfig(BaseModel):
     
     # Model selections
     summary_model: str = Field(
-        default="gpt-5.1-mini",
+        default="gpt-5-mini",
         description="Model for generating summaries (use the latest available model; update as newer models become available)"
     )
     taxonomy_model: str = Field(
-        default="gpt-5.1-mini",
+        default="gpt-5-mini",
         description="Model for taxonomy generation"
     )
     classification_model: str = Field(
-        default="gpt-5.1-mini",
+        default="gpt-5-mini",
         description="Model for paper classification"
     )
     embedding_model: str = Field(

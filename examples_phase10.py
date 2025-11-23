@@ -6,7 +6,7 @@ This file demonstrates how to use the paper_classification module for various us
 
 Examples include:
 - Building classification prompts
-- Classifying individual papers with GPT-5.1
+- Classifying individual papers with GPT-5
 - Batch classification with rate limiting
 - Validating classifications
 - Updating paper records

@@ -118,3 +118,37 @@ using the existing data models, embeddings, and configuration.
 
 Keep each function well-documented and easy for other agents (e.g.
 workflow-ops) to call and orchestrate.
+
+## OpenAI & Responses API usage (summarization-export-agent)
+
+When implementing summarization and export logic:
+
+1. **Single-document summarization (interactive / small runs)**
+   - For ad-hoc or small-scale summarization:
+     - Use `client.responses.create` with:
+       - `model: config.default_model` (default `"gpt-5-mini"`).
+       - `instructions`: global behavior and style.
+       - `input`: summary prompt + paper content or key sections.
+     - When you need structured summaries (e.g. `{ main_contribution, methods, findings }`):
+       - Use `response_format: { type: "json_schema", json_schema: { ... } }`.
+
+2. **Large-scale summarization (primary mode)**
+   - For summarizing many papers (Phase 6), default to the **Batch API**:
+     - Build a JSONL file where each line:
+       - Uses `url: "/v1/responses"`.
+       - Has `body.model` set to `"gpt-5-mini"`.
+       - Encodes the schema for structured summaries in `response_format`.
+     - Run:
+       - `batches.create({ input_file_id, endpoint: "/v1/responses" })`.
+     - After completion:
+       - Download results.
+       - Join back to `PaperRecord` via `custom_id`.
+
+3. **Flex tier for non-urgent synchronous jobs (optional)**
+   - For synchronous but non-urgent summarization tasks (e.g. scheduled nightly jobs) that don’t require GPT-5:
+     - Consider `model: "o4-mini"` with `service_tier: "flex"`.
+   - Never use flex for user-facing, latency-sensitive summarization.
+
+4. **Export logic does NOT call OpenAI**
+   - Export functions (CSV/Parquet) must not call the API.
+   - They only consume completed `PaperRecord` data, summaries, and metadata.

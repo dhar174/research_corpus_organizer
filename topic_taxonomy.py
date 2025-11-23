@@ -5,7 +5,7 @@ RAG PDF Research Corpus System - Topic Modeling and Taxonomy Construction (Phase
 This module implements Phase 8 of the FINAL_NOTEBOOK_ACTION_PLAN.md:
 - Step 8.1: Generate Paper-Level Embeddings (aggregate chunk embeddings)
 - Step 8.2: Tier 1 Clustering (broad topics using KMeans/Agglomerative)
-- Step 8.3: Generate Tier 1 Labels with GPT-5.1
+- Step 8.3: Generate Tier 1 Labels with GPT-5
 - Step 8.4: Tier 2 Clustering (mid-level topics)
 - Step 8.5: Generate Tier 2 Labels
 - Step 8.6: Tier 3 Clustering (fine-grained topics)
@@ -470,13 +470,13 @@ def build_tier1_taxonomy(
 
 class TopicLabelGenerator:
     """
-    Generates topic labels and descriptions using GPT-5.1.
+    Generates topic labels and descriptions using GPT-5.
     """
     
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-5.1-mini",
+        model: str = "gpt-5-mini",
         reasoning_effort: Literal["none", "low", "medium", "high"] = "high"
     ):
         """
@@ -546,7 +546,7 @@ class TopicLabelGenerator:
         sibling_labels: Optional[List[str]] = None
     ) -> Dict[str, str]:
         """
-        Generate topic label and description using GPT-5.1.
+        Generate topic label and description using GPT-5.
         
         Args:
             representative_papers: Sample papers from this cluster
@@ -632,12 +632,12 @@ Format your response as JSON:
   "description": "Description of the topic..."
 }}"""
         
-        # Call GPT-5.1
+        # Call GPT-5 using Responses API
         try:
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are an expert at analyzing research papers and identifying topic hierarchies."},
+                instructions="You are an expert at analyzing research papers and identifying topic hierarchies.",
+                input=[
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -680,7 +680,7 @@ def generate_tier1_labels(
     api_key: str
 ) -> List[TopicNode]:
     """
-    Generate labels for Tier 1 topics using GPT-5.1.
+    Generate labels for Tier 1 topics using GPT-5.
     
     Args:
         tier1_clusters: Tier 1 cluster data

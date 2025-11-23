@@ -145,7 +145,8 @@ class TaxonomyReviewer:
             lines.append(f"\nTier 2 Sub-topics ({len(tier2_children)}):")
             for t2 in tier2_children:
                 lines.append(f"  • {t2.id}: {t2.label} ({t2.paper_count} papers)")
-                lines.append(f"    {t2.description[:100]}...")
+                desc = t2.description[:100]
+                lines.append(f"    {desc}{'...' if len(t2.description) > 100 else ''}")
         
         return "\n".join(lines)
     
@@ -953,13 +954,16 @@ def split_topic(
     
     # Create new topics
     for i, (papers, label, description) in enumerate(zip(paper_groups, new_labels, new_descriptions)):
-        # Generate new ID based on tier
+        # Generate new ID based on tier and sequential index
         if tier == 1:
-            new_id = f"T1_{len(hierarchy.tier1):02d}"
+            base_count = len(hierarchy.tier1)
+            new_id = f"T1_{base_count + i:02d}"
         elif tier == 2:
-            new_id = f"T2_{len(hierarchy.tier2):02d}"
+            base_count = len(hierarchy.tier2)
+            new_id = f"T2_{base_count + i:02d}"
         else:
-            new_id = f"T3_{len(hierarchy.tier3):02d}"
+            base_count = len(hierarchy.tier3)
+            new_id = f"T3_{base_count + i:02d}"
         
         new_topic = TopicNode(
             id=new_id,

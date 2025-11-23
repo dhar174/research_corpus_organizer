@@ -265,7 +265,8 @@ class TaxonomyReviewer:
             
             lines.append(f"{topic.id}: {topic.label}{parent_info}")
             lines.append(f"  Papers: {topic.paper_count}")
-            lines.append(f"  Description: {topic.description[:80]}...")
+            desc = topic.description[:80]
+            lines.append(f"  Description: {desc}{'...' if len(topic.description) > 80 else ''}")
             lines.append("")
         
         return "\n".join(lines)

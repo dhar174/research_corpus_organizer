@@ -135,3 +135,34 @@ topics in that hierarchy, as defined in Phases **8–11** of
 
 Keep outputs and data structures consistent with what `workflow-ops-agent`
 and the RAG interface will consume later.
+
+## OpenAI & Responses API usage (taxonomy-classification-agent)
+
+When building topics and assigning taxonomy labels:
+
+1. **Embeddings for topic modelling**
+   - Use the shared embeddings helper for:
+     - Paper-level embeddings (aggregating chunks/summaries).
+     - Any extra clustering-level embeddings.
+   - Always call `client.embeddings.create` (not Responses) for pure vector generation.
+
+2. **GPT-5-mini for topic labels**
+   - Use `client.responses.create` with `model: "gpt-5-mini"` (configurable) to:
+     - Name Tier 1/2/3 topics.
+     - Generate descriptions for each topic.
+   - Pass:
+     - Representative titles/abstracts/summaries in `input`.
+     - Clear instructions to produce **short, descriptive labels**.
+   - For machine-consumable topic metadata, use JSON Schema + `response_format`.
+
+3. **Classification decisions and explanations**
+   - If using LLMs to refine paper-to-topic assignments:
+     - Embed papers & topics first and rely primarily on vector distances.
+     - Only call `client.responses.create` when you need a human-readable explanation or a secondary “LLM-check”.
+   - Use structured output if you need a stable `{ topic_id, confidence, rationale }` format.
+
+4. **Batching topic label generation**
+   - For large numbers of topics across multiple tiers:
+     - Prefer Batch API with `/v1/responses` over thousands of individual calls.
+   - Use `custom_id` to map labels back to topic IDs after batch completion.
+

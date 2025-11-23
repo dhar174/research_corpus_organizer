@@ -9,7 +9,9 @@ This module implements Phase 10 of the FINAL_NOTEBOOK_ACTION_PLAN.md:
 - Step 10.4: Validate Classifications
 - Step 10.5: Update Paper Records
 
-Version: 1.0
+Uses OpenAI Responses API with reasoning_effort parameter for GPT-5.1 models.
+
+Version: 1.1
 Date: 2025-11-23
 """
 
@@ -130,7 +132,7 @@ def build_classification_prompt(
     reasoning_effort: Literal["none", "low", "medium", "high"] = "medium"
 ) -> str:
     """
-    Build classification prompt for GPT-5.1.
+    Build classification prompt for GPT-5.1 with Responses API.
     
     Creates a comprehensive prompt that includes:
     - The complete taxonomy structure
@@ -139,10 +141,13 @@ def build_classification_prompt(
     - Classification instructions
     - Output format specification
     
+    Note: The reasoning_effort parameter is passed to the OpenAI API
+    separately and controls the model's reasoning depth.
+    
     Args:
         paper: PaperRecord to classify
         hierarchy: TopicHierarchy to classify into
-        reasoning_effort: Level of reasoning to apply
+        reasoning_effort: Level of reasoning (passed to API, not used in prompt)
         
     Returns:
         Formatted prompt string
@@ -246,7 +251,14 @@ Return your response in JSON format:
 
 class PaperClassifier:
     """
-    Classifies papers into taxonomy topics using GPT-5.1.
+    Classifies papers into taxonomy topics using GPT-5.1 with Responses API.
+    
+    Uses OpenAI's reasoning_effort parameter to control the depth of analysis.
+    Reasoning effort levels:
+    - "none": Minimal reasoning, fastest
+    - "low": Basic reasoning
+    - "medium": Balanced reasoning (default)
+    - "high": Deep reasoning, most thorough
     """
     
     def __init__(
@@ -260,8 +272,12 @@ class PaperClassifier:
         
         Args:
             api_key: OpenAI API key
-            model: Model to use for classification
-            reasoning_effort: Level of reasoning to apply
+            model: Model to use for classification (e.g., gpt-5.1-mini, gpt-5.1)
+            reasoning_effort: Level of reasoning to apply via OpenAI Responses API
+                - "none": Minimal reasoning, fastest
+                - "low": Basic reasoning
+                - "medium": Balanced reasoning (default)
+                - "high": Deep reasoning, most thorough
         """
         if not OPENAI_AVAILABLE:
             raise ImportError("OpenAI package required. Install with: pip install openai")
@@ -278,7 +294,7 @@ class PaperClassifier:
         hierarchy: TopicHierarchy
     ) -> Dict[str, Any]:
         """
-        Classify a single paper using GPT-5.1.
+        Classify a single paper using GPT-5.1 with Responses API.
         
         Args:
             paper: PaperRecord to classify
@@ -293,7 +309,7 @@ class PaperClassifier:
         logger.debug(f"Classifying paper {paper.id}: {paper.title[:50] if paper.title else 'Untitled'}...")
         
         try:
-            # Call GPT-5.1
+            # Call GPT-5.1 using Responses API with reasoning effort
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -307,7 +323,8 @@ class PaperClassifier:
                     }
                 ],
                 temperature=0.3,  # Lower temperature for more consistent classification
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
+                reasoning_effort=self.reasoning_effort  # Pass reasoning effort to API
             )
             
             # Parse response

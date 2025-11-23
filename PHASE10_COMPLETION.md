@@ -2,7 +2,7 @@
 
 **Date:** 2025-11-23  
 **Status:** ✅ Complete  
-**Version:** 1.0
+**Version:** 1.1
 
 ---
 
@@ -10,7 +10,7 @@
 
 Phase 10 has been successfully completed with comprehensive paper classification functionality implemented in `paper_classification.py`. All requirements from FINAL_NOTEBOOK_ACTION_PLAN.md Phase 10 and the GitHub issue have been implemented and tested.
 
-This phase provides automated classification of research papers into the approved 3-tier taxonomy using GPT-5.1 with reasoning capabilities.
+This phase provides automated classification of research papers into the approved 3-tier taxonomy using GPT-5.1 with the OpenAI Responses API and reasoning capabilities.
 
 ---
 
@@ -23,15 +23,21 @@ This phase provides automated classification of research papers into the approve
 **Implementation:**
 
 #### `PaperClassifier` Class
-Classifies papers into taxonomy topics using GPT-5.1.
+Classifies papers into taxonomy topics using GPT-5.1 with OpenAI Responses API.
 
 **Features:**
-- ✅ OpenAI API client integration
+- ✅ OpenAI Responses API integration with reasoning_effort parameter
 - ✅ Configurable model selection (gpt-5.1-mini, gpt-5.1)
 - ✅ Configurable reasoning effort levels (none, low, medium, high)
 - ✅ JSON-formatted output parsing
 - ✅ Error handling and retry logic
 - ✅ Detailed logging
+
+**Reasoning Effort Levels:**
+- **none**: Minimal reasoning, fastest
+- **low**: Basic reasoning
+- **medium**: Balanced reasoning (default)
+- **high**: Deep reasoning, most thorough
 
 **Methods:**
 ```python

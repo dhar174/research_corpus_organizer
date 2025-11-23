@@ -1,14 +1,14 @@
 # Phase 10: Final Topic Classification
 
 **Status:** ✅ Complete  
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** 2025-11-23
 
 ---
 
 ## Overview
 
-Phase 10 implements automated classification of research papers into the approved 3-tier topic taxonomy using GPT-5.1 with reasoning capabilities. This phase takes papers that have been embedded and/or summarized (from earlier phases) and classifies them into the hierarchical taxonomy created in Phase 8 and approved in Phase 9.
+Phase 10 implements automated classification of research papers into the approved 3-tier topic taxonomy using GPT-5.1 with the OpenAI Responses API and reasoning capabilities. This phase takes papers that have been embedded and/or summarized (from earlier phases) and classifies them into the hierarchical taxonomy created in Phase 8 and approved in Phase 9.
 
 ---
 
@@ -16,7 +16,7 @@ Phase 10 implements automated classification of research papers into the approve
 
 1. **Builds Classification Prompts**: Creates comprehensive prompts for GPT-5.1 that include the complete taxonomy structure, paper metadata, abstract, and summary.
 
-2. **Classifies Papers**: Uses GPT-5.1 to classify each paper at all three tiers of the taxonomy, generating confidence scores and reasoning for each classification.
+2. **Classifies Papers**: Uses GPT-5.1 with OpenAI Responses API to classify each paper at all three tiers of the taxonomy, generating confidence scores and reasoning for each classification. The `reasoning_effort` parameter controls the depth of analysis.
 
 3. **Batch Processing**: Processes papers in batches with configurable rate limiting and retry logic to handle API limits.
 
@@ -118,10 +118,14 @@ else:
 
 ## Key Features
 
-### 1. GPT-5.1 Integration
+### 1. OpenAI Responses API Integration
 
-- Uses OpenAI API with latest GPT-5.1 models
-- Supports reasoning effort levels (none, low, medium, high)
+- Uses OpenAI Responses API with GPT-5.1 models
+- `reasoning_effort` parameter controls depth of analysis:
+  - **none**: Minimal reasoning, fastest
+  - **low**: Basic reasoning
+  - **medium**: Balanced reasoning (default)
+  - **high**: Deep reasoning, most thorough
 - JSON-formatted output for structured classification
 - Error handling and retry logic
 

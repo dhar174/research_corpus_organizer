@@ -264,7 +264,7 @@ class PaperClassifier:
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-5.1-mini",
+        model: str = "gpt-5-mini",
         reasoning_effort: Literal["none", "low", "medium", "high"] = "medium"
     ):
         """
@@ -272,7 +272,7 @@ class PaperClassifier:
         
         Args:
             api_key: OpenAI API key
-            model: Model to use for classification (e.g., gpt-5.1-mini, gpt-5.1)
+            model: Model to use for classification (e.g., gpt-5-mini, gpt-5.1)
             reasoning_effort: Level of reasoning to apply via OpenAI Responses API
                 - "none": Minimal reasoning, fastest
                 - "low": Basic reasoning
@@ -294,7 +294,7 @@ class PaperClassifier:
         hierarchy: TopicHierarchy
     ) -> Dict[str, Any]:
         """
-        Classify a single paper using GPT-5.1 with Responses API.
+        Classify a single paper using GPT-5 with Responses API.
         
         Args:
             paper: PaperRecord to classify
@@ -309,14 +309,11 @@ class PaperClassifier:
         logger.debug(f"Classifying paper {paper.id}: {paper.title[:50] if paper.title else 'Untitled'}...")
         
         try:
-            # Call GPT-5.1 using Responses API with reasoning effort
-            response = self.client.chat.completions.create(
+            # Call GPT-5 using Responses API with reasoning effort
+            response = self.client.responses.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert research paper classifier. Always return valid JSON."
-                    },
+                instructions="You are an expert research paper classifier. Always return valid JSON.",
+                input=[
                     {
                         "role": "user",
                         "content": prompt

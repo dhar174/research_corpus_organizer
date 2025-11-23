@@ -350,7 +350,7 @@ class SummaryGenerator:
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-5.1-mini",
+        model: str = "gpt-5-mini",
         reasoning_effort: str = "medium",
         max_tokens: int = 2000,
         rate_limit_delay: float = 1.0,
@@ -399,8 +399,8 @@ class SummaryGenerator:
         Returns:
             Tuple of (summary_text, usage_stats)
         """
-        messages = [
-            {"role": "system", "content": system_prompt},
+        # Build input for Responses API
+        input_messages = [
             {"role": "user", "content": user_prompt}
         ]
         
@@ -410,20 +410,21 @@ class SummaryGenerator:
                 if self.stats.api_calls > 0:
                     time.sleep(self.rate_limit_delay)
                 
-                # Build request parameters
+                # Build request parameters for Responses API
                 request_params = {
                     "model": self.model,
-                    "messages": messages,
+                    "instructions": system_prompt,  # Map system message to instructions
+                    "input": input_messages,  # Convert messages to input array
                     "max_tokens": self.max_tokens,
                     "temperature": temperature,
                 }
                 
                 # Add reasoning effort if supported
-                if self.reasoning_effort != "none" and "gpt-5.1" in self.model.lower():
+                if self.reasoning_effort != "none" and "gpt-5" in self.model.lower():
                     request_params["reasoning_effort"] = self.reasoning_effort
                 
                 start_time = time.time()
-                response = self.client.chat.completions.create(**request_params)
+                response = self.client.responses.create(**request_params)
                 elapsed = time.time() - start_time
                 
                 # Extract response
@@ -474,8 +475,8 @@ class SummaryGenerator:
         """
         # Pricing as of Nov 2025 (approximate)
         cost_per_1m_tokens = {
-            "gpt-5.1-mini": 0.15,  # Placeholder pricing
-            "gpt-5.1": 0.30,       # Placeholder pricing
+            "gpt-5-mini": 0.15,  # Placeholder pricing
+            "gpt-5.1": 0.30,       # Placeholder pricing (note: GPT-5.1 is separate from GPT-5-mini)
             "gpt-4-turbo": 10.00,
             "gpt-4": 30.00,
         }
@@ -936,7 +937,7 @@ def validate_paper_summaries(state: GraphState) -> Dict[str, Any]:
 def estimate_summarization_cost(
     num_papers: int,
     avg_paper_length_chars: int = 10000,
-    model: str = "gpt-5.1-mini",
+    model: str = "gpt-5-mini",
     include_notes: bool = True
 ) -> Dict[str, Any]:
     """
@@ -969,7 +970,7 @@ def estimate_summarization_cost(
     
     # Pricing
     cost_per_1m_tokens = {
-        "gpt-5.1-mini": 0.15,
+        "gpt-5-mini": 0.15,
         "gpt-5.1": 0.30,
         "gpt-4-turbo": 10.00,
         "gpt-4": 30.00,

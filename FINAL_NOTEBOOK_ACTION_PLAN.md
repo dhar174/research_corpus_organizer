@@ -9,7 +9,7 @@
 
 ## Overview
 
-This document provides a comprehensive, step-by-step action plan for implementing the RAG PDF Research Corpus System as specified in the technical specification v2.1. The system will use LangGraph workflows with GPT-5.1 Thinking to process academic PDFs from Google Drive, extract metadata, generate summaries, build a hierarchical topic taxonomy, and enable RAG-based querying.
+This document provides a comprehensive, step-by-step action plan for implementing the RAG PDF Research Corpus System as specified in the technical specification v2.1. The system will use LangGraph workflows with GPT-5 to process academic PDFs from Google Drive, extract metadata, generate summaries, build a hierarchical topic taxonomy, and enable RAG-based querying.
 
 ---
 
@@ -28,7 +28,7 @@ This document provides a comprehensive, step-by-step action plan for implementin
 
 ### Step 0.3: Install Dependencies
 Create installation cell with all required packages:
-- [ ] OpenAI Python SDK (latest version supporting GPT-5.1)
+- [ ] OpenAI Python SDK (latest version supporting GPT-5)
 - [ ] LangGraph (for workflow orchestration)
 - [ ] PyMuPDF (fitz) for PDF parsing
 - [ ] FAISS (CPU version) for vector indexing
@@ -320,7 +320,7 @@ def generate_embeddings(texts: list[str], model: str) -> np.ndarray:
 
 ### Step 6.1: Create Summary Generator Node
 - [ ] Implement LangGraph node for summarization
-- [ ] Use GPT-5.1 with appropriate reasoning effort
+- [ ] Use GPT-5 with appropriate reasoning effort
 - [ ] Create prompts for high-quality summaries
 - [ ] Process abstract and key sections
 - [ ] Generate full_summary field
@@ -329,7 +329,7 @@ def generate_embeddings(texts: list[str], model: str) -> np.ndarray:
 ```python
 def summarize_paper_node(paper_id: str, state: GraphState) -> GraphState:
     """
-    Generate comprehensive summary using GPT-5.1.
+    Generate comprehensive summary using GPT-5.
     Updates paper record with summary.
     """
 ```
@@ -448,7 +448,7 @@ def build_tier1_taxonomy(paper_embeddings: np.ndarray, config: RunConfig) -> lis
 - [ ] Link Tier 2 to parent Tier 1
 
 ### Step 8.5: Generate Tier 2 Labels
-- [ ] Use GPT-5.1 to label each Tier 2 topic
+- [ ] Use GPT-5 to label each Tier 2 topic
 - [ ] Generate descriptions
 - [ ] Ensure labels distinguish from sibling topics
 - [ ] Assign topic IDs (T2_*)
@@ -462,7 +462,7 @@ def build_tier1_taxonomy(paper_embeddings: np.ndarray, config: RunConfig) -> lis
 - [ ] Link Tier 3 to parent Tier 2
 
 ### Step 8.7: Generate Tier 3 Labels
-- [ ] Use GPT-5.1 to label each Tier 3 topic
+- [ ] Use GPT-5 to label each Tier 3 topic
 - [ ] Generate detailed descriptions
 - [ ] Highlight specificity
 - [ ] Assign topic IDs (T3_*)
@@ -524,7 +524,7 @@ def save_taxonomy(hierarchy: TopicHierarchy, output_path: str) -> str:
 
 ### Step 10.1: Create Classification Node
 - [ ] Implement LangGraph node for classification
-- [ ] Use GPT-5.1 with reasoning
+- [ ] Use GPT-5 with reasoning
 - [ ] Classify each paper at all three tiers
 - [ ] Generate confidence scores
 - [ ] Create classification_notes
@@ -539,7 +539,7 @@ def classify_paper_node(paper_id: str, state: GraphState) -> GraphState:
 ```
 
 ### Step 10.2: Design Classification Prompts
-- [ ] Provide taxonomy structure to GPT-5.1
+- [ ] Provide taxonomy structure to GPT-5
 - [ ] Include paper abstract and summary
 - [ ] Request classification at all tiers
 - [ ] Ask for confidence scores (0-1)

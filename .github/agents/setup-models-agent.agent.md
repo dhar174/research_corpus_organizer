@@ -170,3 +170,35 @@ throughout the pipeline.
   Those belong to other specialized agents.
 
 Always work in **small, coherent edits** and keep related logic grouped together.
+
+## OpenAI & Responses API usage (setup-models-agent)
+
+When defining configuration, helpers, or boilerplate for OpenAI access:
+
+1. **Centralize configuration**
+   - Add config fields for:
+     - `OPENAI_API_KEY` (read from env at runtime, not hard-coded).
+     - Default text model (e.g. `"gpt-5-mini"`).
+     - Default embedding model (e.g. `"text-embedding-3-small"`).
+     - Optional batch and flex settings (timeouts, max batch size).
+   - Provide a single helper (e.g. `get_openai_client()`) that returns an initialized `OpenAI` client.
+
+2. **Standardize Responses API usage**
+   - Include example helpers for:
+     - `call_gpt5_mini_text(prompt: str) -> str`
+     - `call_gpt5_mini_json(prompt: str, schema: dict) -> dict`
+   - These helpers MUST:
+     - Use `client.responses.create` (not Chat Completions).
+     - Pass global behavior via `instructions`.
+     - Put messages in `input: [{ "role": "user", "content": prompt }]`.
+
+3. **Standardize Embeddings usage**
+   - Provide a helper like `embed_texts(texts: list[str]) -> list[list[float]]` that:
+     - Calls `client.embeddings.create({ model: config.embedding_model, input: texts })`.
+     - Returns an array of vectors, aligned to `texts`.
+
+4. **Docstrings & comments**
+   - Clearly document in the helpers:
+     - That the **Responses API** is the only allowed interface for new OpenAI code.
+     - That `"gpt-5-mini"` is the default model and must be configurable.
+   - Add a short note pointing future contributors at the shared OpenAI API Usage Policy section.

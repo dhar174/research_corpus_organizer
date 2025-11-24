@@ -1840,13 +1840,13 @@ class CostTracker:
                 "Consider using text-embedding-3-small for embeddings (6.5x cheaper)"
             )
         
-        # Check for high-cost operations
-        if self.cost_by_operation["summarization"] > self.total_cost * 0.5:
+        # Check for high-cost operations (only if enough data)
+        if self.total_cost > 0.01 and len(self.api_calls) >= 10 and self.cost_by_operation["summarization"] > self.total_cost * 0.5:
             recommendations.append(
                 "Summarization is >50% of total cost. Consider reducing max_tokens_per_summary"
             )
         
-        if self.cost_by_operation["embedding"] > self.total_cost * 0.5:
+        if self.total_cost > 0.01 and len(self.api_calls) >= 10 and self.cost_by_operation["embedding"] > self.total_cost * 0.5:
             recommendations.append(
                 "Embeddings are >50% of total cost. Consider using smaller chunks or text-embedding-3-small"
             )

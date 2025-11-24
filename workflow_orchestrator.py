@@ -1841,24 +1841,6 @@ class ErrorRecoveryManager:
             )
         
         return recommendations
-        
-        # Reset paper status
-        paper.processing_status = "pending"
-        paper.error_reason = None
-        paper.error_stage = None
-        paper.retry_count += 1
-        
-        # Move from failed to pending list
-        if paper_id in state.get("papers_failed", []):
-            state["papers_failed"].remove(paper_id)
-        if paper_id not in state.get("papers_pending", []):
-            state["papers_pending"].append(paper_id)
-        
-        self.logger.info(f"Retry {paper.retry_count}/{self.max_retries} for {paper_id}")
-        
-        return state
-
-
 def retry_failed_papers(
     state: GraphState,
     max_retries: int = 3,

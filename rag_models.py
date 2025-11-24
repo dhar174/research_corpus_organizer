@@ -1554,6 +1554,7 @@ class DataValidator:
                 validation_result["errors"].append("PDF has 0 pages")
                 doc.close()
                 raise PDFValidationError(f"PDF has 0 pages: {file_path}")
+            
             doc.close()
         
         except Exception as e:

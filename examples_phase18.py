@@ -16,7 +16,6 @@ Date: 2025-11-24
 """
 
 import logging
-from typing import Dict, Any, List
 
 # Configure logging
 logging.basicConfig(
@@ -38,12 +37,10 @@ from rag_models import (
 )
 
 from workflow_orchestrator import (
-    ErrorRecoveryManager,
     retry_failed_papers,
     list_failed_papers,
     get_recovery_options,
     create_recovery_checkpoint,
-    rollback_to_checkpoint,
 )
 
 
@@ -372,7 +369,6 @@ def example_complete_workflow():
     error_handler = ErrorHandler()
     retry_handler = RetryHandler(max_retries=3)
     validator = DataValidator()
-    recovery_manager = ErrorRecoveryManager(max_retries=3)
     
     # Step 1: Validate input data
     print("\n--- Step 1: Validate Input Data ---")

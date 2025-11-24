@@ -239,6 +239,9 @@ def test_retrieve_top_k_chunks():
         index_path = Path(tmpdir) / "test.index"
         meta_path = Path(tmpdir) / "test_meta.json"
         
+        # Create dummy index file so the existence check passes
+        index_path.touch()
+        
         # Save metadata
         with open(meta_path, 'w') as f:
             json.dump(metadata, f)
@@ -766,6 +769,9 @@ def test_end_to_end_query_flow():
     with tempfile.TemporaryDirectory() as tmpdir:
         index_path = Path(tmpdir) / "test.index"
         meta_path = Path(tmpdir) / "test_meta.json"
+        
+        # Create dummy index file so the existence check passes
+        index_path.touch()
         
         with open(meta_path, 'w') as f:
             json.dump(metadata, f)

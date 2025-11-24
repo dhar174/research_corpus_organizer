@@ -15,7 +15,7 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phases 0-15 Complete ✓
+**Current Phase:** Phases 0-16 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
@@ -33,7 +33,8 @@ This project implements an intelligent pipeline for:
 - ✅ Phase 13: LangGraph workflow integration (COMPLETE - see PHASE13_COMPLETION.md)
 - ✅ Phase 14: Quality control and validation (COMPLETE - see PHASE14_COMPLETION.md)
 - ✅ Phase 15: RAG query interface (COMPLETE - see PHASE15_COMPLETION.md)
-- 🔄 Phases 16-22: Additional utilities, testing, optimization (planned)
+- ✅ Phase 16: Utility functions and tools (COMPLETE - see PHASE16_COMPLETION.md)
+- 🔄 Phases 17-22: Advanced features, testing, optimization (planned)
 
 ## Quick Start
 
@@ -163,6 +164,12 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - Interactive interface: interactive_query, display_query_results
   - Query history: QueryHistory class, track_query, export_query_history
   - Search utilities: search_by_title_substring, search_by_author, list_papers_in_topic
+- `corpus_utilities.py` - Comprehensive corpus utilities (Phase 16)
+  - Search functions: search_papers, search_by_title, search_by_author, search_by_date_range, search_by_topic, filter_by_status, advanced_search
+  - Statistics: count_papers_by_year, count_papers_by_source, get_most_common_authors, get_most_common_venues, get_topic_distribution, generate_statistics_charts, generate_corpus_report
+  - Export utilities: export_paper_subset, export_by_topic, export_by_date_range, generate_bibtex_entries, create_reading_list, export_to_markdown
+  - Update functions: add_new_papers, reprocess_failed_papers, update_paper_metadata, reclassify_papers, rebuild_faiss_index, merge_corpus_states
+  - Cleanup functions: remove_duplicate_papers, clean_orphaned_chunks, verify_data_integrity, optimize_storage, archive_old_versions, compact_corpus
 
 ### Utilities
 - `notebook_builder.py` - Generate complete standalone notebooks
@@ -245,12 +252,23 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
 - ✅ **Error handling and retry logic**
 - ✅ **Progress monitoring and visualization**
 - ✅ **Workflow state display and reporting**
+- ✅ **RAG query interface with Responses API**
+- ✅ **Interactive query and answer generation**
+- ✅ **Query history tracking and refinement**
+- ✅ **Comprehensive corpus search utilities**
+- ✅ **Statistical analysis and reporting**
+- ✅ **Multi-format export (BibTeX, markdown, HTML)**
+- ✅ **Corpus maintenance and cleanup tools**
+- ✅ **Data integrity verification**
+- ✅ **Storage optimization**
 
-### Planned (Phases 14-22)
-- 📋 Additional quality control and validation
-- 📋 RAG query interface
-- 📋 Utility functions and tools
+### Planned (Phases 17-22)
 - 📋 Advanced features and enhancements
+- 📋 Additional testing and optimization
+
+### Planned (Phases 17-22)
+- 📋 Advanced features and enhancements
+- 📋 Additional testing and optimization
 
 ## System Architecture
 
@@ -369,10 +387,22 @@ python test_phase4.py
 
 # Run Phase 4 examples
 python examples_phase4.py
+
+# Test Phase 15 RAG query interface
+python test_phase15.py
+
+# Run Phase 15 examples
+python examples_phase15.py
+
+# Test Phase 16 utility functions
+python test_phase16.py
+
+# Run Phase 16 examples
+python examples_phase16.py
 ```
 
 ---
 
-**Version:** 1.3  
-**Last Updated:** 2025-11-22  
-**Status:** Phases 0, 1, 2, 3, & 4 Complete - Ready for Phase 5 Development
+**Version:** 1.4  
+**Last Updated:** 2025-11-24  
+**Status:** Phases 0-16 Complete - Ready for Advanced Features Development

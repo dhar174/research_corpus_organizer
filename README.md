@@ -15,7 +15,7 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phases 0-16 Complete ✓
+**Current Phase:** Phase 17 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
@@ -34,7 +34,42 @@ This project implements an intelligent pipeline for:
 - ✅ Phase 14: Quality control and validation (COMPLETE - see PHASE14_COMPLETION.md)
 - ✅ Phase 15: RAG query interface (COMPLETE - see PHASE15_COMPLETION.md)
 - ✅ Phase 16: Utility functions and tools (COMPLETE - see PHASE16_COMPLETION.md)
-- 🔄 Phases 17-22: Advanced features, testing, optimization (planned)
+- ✅ Phase 17: Cost tracking and optimization (COMPLETE - see PHASE17_COMPLETION.md)
+- 🔄 Phases 18-22: Error handling, testing, documentation, finalization (planned)
+
+## Cost Tracking and Budget Controls (Phase 17)
+
+The system now includes comprehensive cost tracking for OpenAI API calls:
+
+```python
+from rag_models import RunConfig, CostTracker
+
+config = RunConfig(
+    # Enable cost tracking with budget limit
+    enable_cost_tracking=True,
+    max_cost_per_run=10.0,           # $10 budget
+    cost_warning_threshold=0.8,      # Warn at 80%
+    
+    # Cost optimization
+    batch_api_calls=True,            # 50% discount
+    enable_result_caching=True,      # Avoid duplicate calls
+)
+
+# Automatic cost monitoring during pipeline execution
+# View detailed cost report at any time
+from workflow_orchestrator import print_cost_summary
+print_cost_summary(state)
+```
+
+**Features:**
+- ✅ Real-time cost tracking with token-level precision
+- ✅ Budget enforcement with configurable limits
+- ✅ 50% batch API discount calculation
+- ✅ Result caching to avoid duplicate calls
+- ✅ Automated cost-saving recommendations
+- ✅ Comprehensive cost reports (JSON + formatted output)
+
+**See [README_PHASE17.md](README_PHASE17.md) for complete cost tracking documentation.**
 
 ## Quick Start
 
@@ -84,6 +119,9 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - TopicHierarchy: 3-tier taxonomy
   - GraphState: LangGraph workflow state
   - Helper classes: MetadataExtractor, StatisticsTracker, ErrorHandler, IDGenerator
+  - **CostTracker: API cost tracking and budget controls (Phase 17)**
+  - **APICallRecord, CostReport: Cost tracking models (Phase 17)**
+  - **BudgetExceededError: Budget limit exception (Phase 17)**
 - `drive_utils.py` - Google Drive integration and PDF discovery (Phase 2)
   - mount_google_drive: Mount Google Drive in Colab
   - discover_pdfs: Recursively find and catalog PDFs
@@ -147,6 +185,8 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - QualityController: Data quality checks
   - ErrorRecoveryManager: Error handling and retry logic
   - run_full_pipeline: Complete end-to-end execution
+  - **Cost tracking integration: Budget controls and monitoring (Phase 17)**
+  - **initialize_cost_tracking, update_cost_tracking, check_budget_before_operation (Phase 17)**
   - run_ingestion_only/run_summarization_only: Selective execution
   - Visualization, monitoring, and progress tracking
 - `quality_control.py` - Quality control and validation framework (Phase 14)

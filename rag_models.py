@@ -44,6 +44,12 @@ __all__ = [
     'ErrorHandler',
     'IDGenerator',
     
+    # Cost Tracking (Phase 17)
+    'CostTracker',
+    'APICallRecord',
+    'CostReport',
+    'BudgetExceededError',
+    
     # Utility Functions
     'validate_paper_record',
     'export_papers_to_csv',
@@ -171,6 +177,28 @@ class RunConfig(BaseModel):
         description="Overlap between chunks in characters"
     )
     
+    # Budget and cost control (Phase 17)
+    max_cost_per_run: Optional[float] = Field(
+        default=None,
+        description="Maximum cost per run in USD (None = no limit)"
+    )
+    cost_warning_threshold: float = Field(
+        default=0.8,
+        description="Warn when cost reaches this fraction of max_cost_per_run (0.0-1.0)"
+    )
+    enable_cost_tracking: bool = Field(
+        default=True,
+        description="Enable cost tracking and reporting"
+    )
+    enable_result_caching: bool = Field(
+        default=True,
+        description="Cache API results to avoid duplicate calls"
+    )
+    batch_api_calls: bool = Field(
+        default=True,
+        description="Use batch API calls where possible for cost savings"
+    )
+    
     @field_validator("max_papers_per_run")
     @classmethod
     def validate_max_papers(cls, v):
@@ -197,6 +225,20 @@ class RunConfig(BaseModel):
     def validate_token_limits(cls, v):
         if v <= 0:
             raise ValueError("Token limits must be positive")
+        return v
+    
+    @field_validator("max_cost_per_run")
+    @classmethod
+    def validate_max_cost(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError("max_cost_per_run must be positive or None")
+        return v
+    
+    @field_validator("cost_warning_threshold")
+    @classmethod
+    def validate_cost_threshold(cls, v):
+        if not (0.0 <= v <= 1.0):
+            raise ValueError("cost_warning_threshold must be between 0.0 and 1.0")
         return v
     
     def to_dict(self) -> Dict[str, Any]:
@@ -257,6 +299,13 @@ class RunConfig(BaseModel):
             f"  OCR fallback: {self.enable_ocr_fallback}",
             f"  Deep analysis: {self.enable_deep_analysis_pass}",
             f"  Taxonomy approval: {self.taxonomy_approval_required}",
+            "",
+            "Budget & Cost Controls:",
+            f"  Max cost per run: ${self.max_cost_per_run if self.max_cost_per_run else 'unlimited'}",
+            f"  Cost warning threshold: {self.cost_warning_threshold * 100}%",
+            f"  Cost tracking: {self.enable_cost_tracking}",
+            f"  Result caching: {self.enable_result_caching}",
+            f"  Batch API calls: {self.batch_api_calls}",
             "=" * 60
         ]
         return "\n".join(lines)
@@ -839,6 +888,11 @@ class GraphState(TypedDict, total=False):
     
     # Statistics
     stats: Dict[str, Any]
+    
+    # Cost tracking (Phase 17)
+    cost_tracker: Optional['CostTracker']
+    total_cost: float
+    cost_breakdown: Dict[str, float]
 
 
 # =============================================================================
@@ -867,7 +921,10 @@ class StateManager:
             papers_completed=[],
             papers_failed=[],
             errors=[],
-            stats={}
+            stats={},
+            cost_tracker=None,  # Will be initialized when needed
+            total_cost=0.0,
+            cost_breakdown={}
         )
     
     @staticmethod
@@ -1275,3 +1332,599 @@ def load_papers_from_csv(csv_path: str) -> Dict[str, PaperRecord]:
         papers[paper.id] = paper
     
     return papers
+
+
+# =============================================================================
+# Phase 17: Cost Tracking and Optimization
+# =============================================================================
+
+class BudgetExceededError(Exception):
+    """Raised when the budget limit is exceeded."""
+    pass
+
+
+class APICallRecord(BaseModel):
+    """
+    Record of a single API call for cost tracking.
+    """
+    timestamp: datetime = Field(default_factory=datetime.now)
+    operation: str = Field(description="Type of operation (embedding, completion, etc.)")
+    model: str = Field(description="Model used")
+    input_tokens: int = Field(default=0, description="Number of input tokens")
+    output_tokens: int = Field(default=0, description="Number of output tokens")
+    total_tokens: int = Field(default=0, description="Total tokens used")
+    estimated_cost: float = Field(default=0.0, description="Estimated cost in USD")
+    paper_id: Optional[str] = Field(default=None, description="Associated paper ID")
+    batch_size: int = Field(default=1, description="Batch size if batched")
+    
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return self.model_dump(mode='json')
+
+
+class CostReport(BaseModel):
+    """
+    Comprehensive cost report for a pipeline run.
+    """
+    start_time: datetime = Field(default_factory=datetime.now)
+    end_time: Optional[datetime] = Field(default=None)
+    total_cost: float = Field(default=0.0, description="Total cost in USD")
+    
+    # Cost breakdown by operation type
+    embedding_cost: float = Field(default=0.0)
+    summarization_cost: float = Field(default=0.0)
+    taxonomy_cost: float = Field(default=0.0)
+    classification_cost: float = Field(default=0.0)
+    other_cost: float = Field(default=0.0)
+    
+    # Token statistics
+    total_input_tokens: int = Field(default=0)
+    total_output_tokens: int = Field(default=0)
+    total_tokens: int = Field(default=0)
+    
+    # API call statistics
+    total_api_calls: int = Field(default=0)
+    api_calls_by_operation: Dict[str, int] = Field(default_factory=dict)
+    
+    # Budget information
+    budget_limit: Optional[float] = Field(default=None)
+    budget_remaining: Optional[float] = Field(default=None)
+    budget_utilization: Optional[float] = Field(default=None)  # 0.0 to 1.0
+    
+    # Warnings and recommendations
+    warnings: List[str] = Field(default_factory=list)
+    recommendations: List[str] = Field(default_factory=list)
+    
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return self.model_dump(mode='json')
+    
+    def to_formatted_string(self) -> str:
+        """
+        Generate a formatted string representation of the cost report.
+        
+        Returns:
+            Formatted cost report string
+        """
+        lines = [
+            "=" * 70,
+            "COST REPORT",
+            "=" * 70,
+            f"Period: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')} - "
+            f"{self.end_time.strftime('%Y-%m-%d %H:%M:%S') if self.end_time else 'In Progress'}",
+            "",
+            "TOTAL COST:",
+            f"  ${self.total_cost:.4f} USD",
+            ""
+        ]
+        
+        if self.budget_limit:
+            lines.extend([
+                "BUDGET:",
+                f"  Limit: ${self.budget_limit:.2f}",
+                f"  Remaining: ${self.budget_remaining:.2f}",
+                f"  Utilization: {self.budget_utilization * 100:.1f}%",
+                ""
+            ])
+        
+        lines.extend([
+            "COST BREAKDOWN BY OPERATION:",
+            f"  Embeddings:      ${self.embedding_cost:.4f}",
+            f"  Summarization:   ${self.summarization_cost:.4f}",
+            f"  Taxonomy:        ${self.taxonomy_cost:.4f}",
+            f"  Classification:  ${self.classification_cost:.4f}",
+            f"  Other:           ${self.other_cost:.4f}",
+            "",
+            "TOKEN USAGE:",
+            f"  Input tokens:    {self.total_input_tokens:,}",
+            f"  Output tokens:   {self.total_output_tokens:,}",
+            f"  Total tokens:    {self.total_tokens:,}",
+            "",
+            "API CALLS:",
+            f"  Total calls:     {self.total_api_calls}",
+        ])
+        
+        if self.api_calls_by_operation:
+            for op, count in sorted(self.api_calls_by_operation.items()):
+                lines.append(f"    {op}: {count}")
+        
+        if self.warnings:
+            lines.extend(["", "WARNINGS:"])
+            for warning in self.warnings:
+                lines.append(f"  ⚠ {warning}")
+        
+        if self.recommendations:
+            lines.extend(["", "RECOMMENDATIONS:"])
+            for rec in self.recommendations:
+                lines.append(f"  💡 {rec}")
+        
+        lines.append("=" * 70)
+        return "\n".join(lines)
+
+
+class CostTracker:
+    """
+    Tracks API costs, token usage, and manages budget controls.
+    
+    This class is the main interface for Phase 17 cost tracking and optimization.
+    It monitors all API calls, calculates costs, enforces budget limits, and
+    provides recommendations for cost savings.
+    """
+    
+    # OpenAI API pricing (as of 2025-11, subject to change)
+    # Source: https://openai.com/api/pricing/
+    PRICING = {
+        # GPT-5 models (Responses API)
+        "gpt-5-mini": {
+            "input": 0.10 / 1_000_000,   # $0.10 per 1M input tokens
+            "output": 0.40 / 1_000_000,  # $0.40 per 1M output tokens
+        },
+        "gpt-5": {
+            "input": 3.00 / 1_000_000,   # $3.00 per 1M input tokens
+            "output": 15.00 / 1_000_000, # $15.00 per 1M output tokens
+        },
+        # O-series models
+        "o4-mini": {
+            "input": 0.15 / 1_000_000,   # $0.15 per 1M input tokens
+            "output": 0.60 / 1_000_000,  # $0.60 per 1M output tokens
+        },
+        "o4": {
+            "input": 5.00 / 1_000_000,   # $5.00 per 1M input tokens
+            "output": 20.00 / 1_000_000, # $20.00 per 1M output tokens
+        },
+        # Embedding models
+        "text-embedding-3-small": {
+            "input": 0.02 / 1_000_000,   # $0.02 per 1M tokens
+            "output": 0.0,
+        },
+        "text-embedding-3-large": {
+            "input": 0.13 / 1_000_000,   # $0.13 per 1M tokens
+            "output": 0.0,
+        },
+        # Batch API discount (50% off)
+        "batch_discount": 0.5,
+    }
+    
+    def __init__(self, config: RunConfig):
+        """
+        Initialize CostTracker with configuration.
+        
+        Args:
+            config: RunConfig with budget settings
+        """
+        self.config = config
+        self.logger = logging.getLogger(f"{__name__}.CostTracker")
+        
+        # Call records
+        self.api_calls: List[APICallRecord] = []
+        
+        # Cost accumulators
+        self.total_cost = 0.0
+        self.cost_by_operation: Dict[str, float] = {
+            "embedding": 0.0,
+            "summarization": 0.0,
+            "taxonomy": 0.0,
+            "classification": 0.0,
+            "other": 0.0,
+        }
+        
+        # Token accumulators
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        
+        # Cache for deduplication
+        self.result_cache: Dict[str, Any] = {}
+        
+        # Budget tracking
+        self.budget_limit = config.max_cost_per_run
+        self.warning_threshold = config.cost_warning_threshold
+        self.warnings_issued: List[str] = []
+        
+        # Start time
+        self.start_time = datetime.now()
+        
+        self.logger.info(f"CostTracker initialized. Budget: ${self.budget_limit if self.budget_limit else 'unlimited'}")
+    
+    def estimate_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int = 0,
+        is_batch: bool = False
+    ) -> float:
+        """
+        Estimate the cost of an API call.
+        
+        Args:
+            model: Model name
+            input_tokens: Number of input tokens
+            output_tokens: Number of output tokens (0 for embeddings)
+            is_batch: Whether this is a batch API call (50% discount)
+            
+        Returns:
+            Estimated cost in USD
+        """
+        # Normalize model name (handle variants)
+        model_key = model.lower()
+        if model_key == "gpt-5-mini" or model_key.startswith("gpt-5-mini-"):
+            model_key = "gpt-5-mini"
+        elif model_key == "gpt-5" or model_key.startswith("gpt-5-"):
+            model_key = "gpt-5"
+        elif model_key == "o4-mini" or model_key.startswith("o4-mini-"):
+            model_key = "o4-mini"
+        elif model_key == "o4" or model_key.startswith("o4-"):
+            model_key = "o4"
+        elif "text-embedding-3-small" in model_key:
+            model_key = "text-embedding-3-small"
+        elif "text-embedding-3-large" in model_key:
+            model_key = "text-embedding-3-large"
+        else:
+            self.logger.warning(f"Unknown model '{model}', using gpt-5-mini pricing as fallback")
+            model_key = "gpt-5-mini"
+        
+        # Get pricing
+        pricing = self.PRICING.get(model_key, self.PRICING["gpt-5-mini"])
+        
+        # Calculate cost
+        input_cost = input_tokens * pricing["input"]
+        output_cost = output_tokens * pricing["output"]
+        total_cost = input_cost + output_cost
+        
+        # Apply batch discount if applicable
+        if is_batch and self.config.batch_api_calls:
+            total_cost *= self.PRICING["batch_discount"]
+        
+        return total_cost
+    
+    def record_api_call(
+        self,
+        operation: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int = 0,
+        paper_id: Optional[str] = None,
+        batch_size: int = 1,
+        is_batch: bool = False
+    ) -> APICallRecord:
+        """
+        Record an API call and update cost tracking.
+        
+        Args:
+            operation: Type of operation (embedding, summarization, etc.)
+            model: Model used
+            input_tokens: Number of input tokens
+            output_tokens: Number of output tokens
+            paper_id: Associated paper ID (if applicable)
+            batch_size: Batch size if batched
+            is_batch: Whether this is a batch API call
+            
+        Returns:
+            APICallRecord with cost information
+            
+        Raises:
+            BudgetExceededError: If budget limit is exceeded
+        """
+        # Estimate cost
+        cost = self.estimate_cost(model, input_tokens, output_tokens, is_batch)
+        
+        # Create record
+        record = APICallRecord(
+            operation=operation,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=input_tokens + output_tokens,
+            estimated_cost=cost,
+            paper_id=paper_id,
+            batch_size=batch_size
+        )
+        
+        # Update accumulators
+        self.api_calls.append(record)
+        self.total_cost += cost
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
+        
+        # Update operation-specific costs
+        operation_key = operation.lower()
+        if "embed" in operation_key:
+            self.cost_by_operation["embedding"] += cost
+        elif "summar" in operation_key:
+            self.cost_by_operation["summarization"] += cost
+        elif "taxon" in operation_key or "topic" in operation_key:
+            self.cost_by_operation["taxonomy"] += cost
+        elif "classif" in operation_key:
+            self.cost_by_operation["classification"] += cost
+        else:
+            self.cost_by_operation["other"] += cost
+        
+        # Check budget
+        self.check_budget()
+        
+        # Log
+        self.logger.debug(
+            f"API call recorded: {operation} ({model}) - "
+            f"{input_tokens} in, {output_tokens} out, ${cost:.4f}"
+        )
+        
+        return record
+    
+    def check_budget(self) -> None:
+        """
+        Check if budget limits are exceeded or approaching.
+        
+        Raises:
+            BudgetExceededError: If budget limit is exceeded
+        """
+        if not self.budget_limit or not self.config.enable_cost_tracking:
+            return
+        
+        utilization = self.total_cost / self.budget_limit
+        
+        # Check if budget exceeded
+        if self.total_cost > self.budget_limit:
+            msg = (
+                f"Budget exceeded! Total cost: ${self.total_cost:.2f}, "
+                f"Limit: ${self.budget_limit:.2f}"
+            )
+            self.logger.error(msg)
+            raise BudgetExceededError(msg)
+        
+        # Check if approaching budget limit
+        if utilization >= self.warning_threshold:
+            warning_key = f"threshold_{int(utilization * 100)}"
+            if warning_key not in self.warnings_issued:
+                msg = (
+                    f"Cost warning: {utilization * 100:.1f}% of budget used "
+                    f"(${self.total_cost:.2f} / ${self.budget_limit:.2f})"
+                )
+                self.logger.warning(msg)
+                self.warnings_issued.append(warning_key)
+    
+    def get_cache_key(self, operation: str, **kwargs) -> str:
+        """
+        Generate a cache key for result caching.
+        
+        Args:
+            operation: Operation type
+            **kwargs: Additional parameters to include in key
+            
+        Returns:
+            Cache key string
+        """
+        import hashlib
+        key_data = json.dumps({"op": operation, **kwargs}, sort_keys=True)
+        # Using SHA256 for cache key generation (non-security use case)
+        return hashlib.sha256(key_data.encode()).hexdigest()
+    
+    def get_cached_result(self, cache_key: str) -> Optional[Any]:
+        """
+        Get a cached result if available.
+        
+        Args:
+            cache_key: Cache key
+            
+        Returns:
+            Cached result or None
+        """
+        if not self.config.enable_result_caching:
+            return None
+        return self.result_cache.get(cache_key)
+    
+    def cache_result(self, cache_key: str, result: Any) -> None:
+        """
+        Cache a result.
+        
+        Args:
+            cache_key: Cache key
+            result: Result to cache
+        """
+        if self.config.enable_result_caching:
+            self.result_cache[cache_key] = result
+    
+    def generate_report(self) -> CostReport:
+        """
+        Generate a comprehensive cost report.
+        
+        Returns:
+            CostReport with all cost information
+        """
+        # Count API calls by operation
+        api_calls_by_op = {}
+        for call in self.api_calls:
+            op = call.operation
+            api_calls_by_op[op] = api_calls_by_op.get(op, 0) + 1
+        
+        # Calculate budget info
+        budget_remaining = None
+        budget_utilization = None
+        if self.budget_limit:
+            budget_remaining = self.budget_limit - self.total_cost
+            budget_utilization = min(self.total_cost / self.budget_limit, 1.0)
+        
+        # Generate warnings
+        warnings = []
+        if self.budget_limit and self.total_cost > self.budget_limit * 0.9:
+            warnings.append("Budget is nearly exhausted (>90% used)")
+        if self.total_cost > 10.0:
+            warnings.append("High total cost detected")
+        
+        # Generate recommendations
+        recommendations = self._generate_recommendations()
+        
+        # Create report
+        report = CostReport(
+            start_time=self.start_time,
+            end_time=datetime.now(),
+            total_cost=self.total_cost,
+            embedding_cost=self.cost_by_operation["embedding"],
+            summarization_cost=self.cost_by_operation["summarization"],
+            taxonomy_cost=self.cost_by_operation["taxonomy"],
+            classification_cost=self.cost_by_operation["classification"],
+            other_cost=self.cost_by_operation["other"],
+            total_input_tokens=self.total_input_tokens,
+            total_output_tokens=self.total_output_tokens,
+            total_tokens=self.total_input_tokens + self.total_output_tokens,
+            total_api_calls=len(self.api_calls),
+            api_calls_by_operation=api_calls_by_op,
+            budget_limit=self.budget_limit,
+            budget_remaining=budget_remaining,
+            budget_utilization=budget_utilization,
+            warnings=warnings,
+            recommendations=recommendations
+        )
+        
+        return report
+    
+    def _generate_recommendations(self) -> List[str]:
+        """
+        Generate cost-saving recommendations based on usage patterns.
+        
+        Returns:
+            List of recommendation strings
+        """
+        recommendations = []
+        
+        # Check if batch API is enabled
+        if not self.config.batch_api_calls:
+            recommendations.append(
+                "Enable batch_api_calls in config for 50% cost savings on bulk operations"
+            )
+        
+        # Check if caching is enabled
+        if not self.config.enable_result_caching:
+            recommendations.append(
+                "Enable enable_result_caching to avoid duplicate API calls"
+            )
+        
+        # Check if using expensive models
+        if self.config.summary_model == "gpt-5":
+            recommendations.append(
+                "Consider using gpt-5-mini for summarization (10-30x cheaper)"
+            )
+        
+        if self.config.embedding_model == "text-embedding-3-large":
+            recommendations.append(
+                "Consider using text-embedding-3-small for embeddings (6.5x cheaper)"
+            )
+        
+        # Check for high-cost operations (only if enough data)
+        if self.total_cost > 0.01 and len(self.api_calls) >= 10 and self.cost_by_operation["summarization"] > self.total_cost * 0.5:
+            recommendations.append(
+                "Summarization is >50% of total cost. Consider reducing max_tokens_per_summary"
+            )
+        
+        if self.total_cost > 0.01 and len(self.api_calls) >= 10 and self.cost_by_operation["embedding"] > self.total_cost * 0.5:
+            recommendations.append(
+                "Embeddings are >50% of total cost. Consider using smaller chunks or text-embedding-3-small"
+            )
+        
+        # Check token usage
+        avg_output_tokens = self.total_output_tokens / len(self.api_calls) if self.api_calls else 0
+        if avg_output_tokens > 1000:
+            recommendations.append(
+                f"Average output tokens per call is high ({avg_output_tokens:.0f}). "
+                "Consider reducing max_tokens parameters"
+            )
+        
+        return recommendations
+    
+    def print_summary(self) -> None:
+        """Print a summary of costs to the console."""
+        report = self.generate_report()
+        print(report.to_formatted_string())
+    
+    def save_report(self, output_path: str) -> str:
+        """
+        Save cost report to a JSON file.
+        
+        Args:
+            output_path: Path to output file
+            
+        Returns:
+            Path to saved file
+        """
+        report = self.generate_report()
+        
+        with open(output_path, 'w') as f:
+            json.dump(report.to_dict(), f, indent=2)
+        
+        self.logger.info(f"Cost report saved to {output_path}")
+        return output_path
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert CostTracker state to dictionary for serialization.
+        
+        Returns:
+            Dictionary with all tracking data
+        """
+        return {
+            "start_time": self.start_time.isoformat(),
+            "total_cost": self.total_cost,
+            "cost_by_operation": self.cost_by_operation,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "budget_limit": self.budget_limit,
+            "api_calls": [call.to_dict() for call in self.api_calls],
+            "warnings_issued": self.warnings_issued,
+        }
+    
+    @classmethod
+    def from_dict(cls, config: RunConfig, data: Dict[str, Any]) -> 'CostTracker':
+        """
+        Restore CostTracker from dictionary.
+        
+        Args:
+            config: RunConfig
+            data: Dictionary with tracking data
+            
+        Returns:
+            Restored CostTracker instance
+        """
+        tracker = cls(config)
+        tracker.start_time = datetime.fromisoformat(data["start_time"])
+        tracker.total_cost = data["total_cost"]
+        tracker.cost_by_operation = data["cost_by_operation"]
+        tracker.total_input_tokens = data["total_input_tokens"]
+        tracker.total_output_tokens = data["total_output_tokens"]
+        tracker.warnings_issued = data["warnings_issued"]
+        
+        # Restore API calls
+        tracker.api_calls = [
+            APICallRecord(**call_data) for call_data in data["api_calls"]
+        ]
+        
+        return tracker

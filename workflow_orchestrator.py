@@ -44,6 +44,8 @@ from rag_models import (
     TopicHierarchy,
     GraphState,
     StateManager,
+    CostTracker,
+    BudgetExceededError,
 )
 
 # Import worker functions
@@ -127,6 +129,14 @@ __all__ = [
     'retry_failed_papers',
     'list_failed_papers',
     'ErrorRecoveryManager',
+    
+    # Phase 17: Cost Tracking Integration
+    'initialize_cost_tracking',
+    'update_cost_tracking',
+    'check_budget_before_operation',
+    'print_cost_summary',
+    'get_cost_recommendations',
+    'save_cost_report',
 ]
 
 
@@ -270,6 +280,7 @@ def supervisor_node(state: GraphState) -> GraphState:
     - Manages the paper queue
     - Handles failures
     - Decides next stage
+    - Monitors costs (Phase 17)
     
     Args:
         state: Current GraphState
@@ -285,6 +296,9 @@ def supervisor_node(state: GraphState) -> GraphState:
         logger.error("No config in state")
         state["current_phase"] = "error"
         return state
+    
+    # Initialize cost tracking if enabled (Phase 17)
+    state = initialize_cost_tracking(state)
     
     # Create coordinator
     coordinator = SupervisorCoordinator(config)
@@ -304,6 +318,14 @@ def supervisor_node(state: GraphState) -> GraphState:
     state["stats"] = stats
     
     logger.info(f"Statistics: {stats}")
+    
+    # Log cost information if tracking enabled (Phase 17)
+    if config.enable_cost_tracking and state.get("cost_tracker"):
+        tracker = state["cost_tracker"]
+        logger.info(f"Current cost: ${tracker.total_cost:.4f}")
+        if config.max_cost_per_run:
+            utilization = tracker.total_cost / config.max_cost_per_run
+            logger.info(f"Budget utilization: {utilization * 100:.1f}%")
     
     return state
 
@@ -1638,3 +1660,231 @@ def list_failed_papers(state: GraphState) -> List[Dict[str, Any]]:
             })
     
     return failed
+
+
+# =============================================================================
+# Phase 17: Cost Tracking Integration
+# =============================================================================
+
+def initialize_cost_tracking(state: GraphState) -> GraphState:
+    """
+    Initialize cost tracking in the GraphState.
+    
+    Args:
+        state: Current GraphState
+        
+    Returns:
+        Updated GraphState with cost tracker initialized
+    """
+    config = state.get("config")
+    if not config or not config.enable_cost_tracking:
+        logger.info("Cost tracking disabled in config")
+        return state
+    
+    # Initialize cost tracker if not already present
+    if state.get("cost_tracker") is None:
+        logger.info("Initializing cost tracker")
+        state["cost_tracker"] = CostTracker(config)
+        state["total_cost"] = 0.0
+        state["cost_breakdown"] = {}
+    
+    return state
+
+
+def update_cost_tracking(
+    state: GraphState,
+    operation: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int = 0,
+    paper_id: Optional[str] = None,
+    batch_size: int = 1,
+    is_batch: bool = False
+) -> GraphState:
+    """
+    Record an API call and update cost tracking in state.
+    
+    Args:
+        state: Current GraphState
+        operation: Type of operation (embedding, summarization, etc.)
+        model: Model used
+        input_tokens: Number of input tokens
+        output_tokens: Number of output tokens
+        paper_id: Associated paper ID (if applicable)
+        batch_size: Batch size if batched
+        is_batch: Whether this is a batch API call
+        
+    Returns:
+        Updated GraphState with cost information
+        
+    Raises:
+        BudgetExceededError: If budget limit is exceeded
+    """
+    config = state.get("config")
+    if not config or not config.enable_cost_tracking:
+        return state
+    
+    # Ensure cost tracker is initialized
+    state = initialize_cost_tracking(state)
+    
+    tracker = state["cost_tracker"]
+    
+    try:
+        # Record the API call
+        record = tracker.record_api_call(
+            operation=operation,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            paper_id=paper_id,
+            batch_size=batch_size,
+            is_batch=is_batch
+        )
+        
+        # Update state with current costs
+        state["total_cost"] = tracker.total_cost
+        state["cost_breakdown"] = tracker.cost_by_operation.copy()
+        
+        logger.debug(f"Cost updated: ${tracker.total_cost:.4f} (+${record.estimated_cost:.4f})")
+        
+    except BudgetExceededError as e:
+        logger.error(f"Budget exceeded: {e}")
+        # Add to errors but don't fail silently
+        state["errors"].append({
+            "stage": "cost_tracking",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        })
+        # Re-raise to allow caller to handle
+        raise
+    
+    return state
+
+
+def check_budget_before_operation(
+    state: GraphState,
+    operation: str,
+    estimated_tokens: int,
+    model: Optional[str] = None
+) -> bool:
+    """
+    Check if there's sufficient budget before starting an expensive operation.
+    
+    Args:
+        state: Current GraphState
+        operation: Operation to perform
+        estimated_tokens: Estimated token usage
+        model: Model to use (defaults from config if not specified)
+        
+    Returns:
+        True if operation can proceed, False if budget would be exceeded
+    """
+    config = state.get("config")
+    if not config or not config.enable_cost_tracking or not config.max_cost_per_run:
+        # No budget limit, always allow
+        return True
+    
+    # Get tracker
+    tracker = state.get("cost_tracker")
+    if tracker is None:
+        # No tracking yet, initialize
+        state = initialize_cost_tracking(state)
+        tracker = state["cost_tracker"]
+    
+    # Determine model
+    if model is None:
+        if "embed" in operation.lower():
+            model = config.embedding_model
+        elif "summar" in operation.lower():
+            model = config.summary_model
+        elif "classif" in operation.lower():
+            model = config.classification_model
+        else:
+            model = config.summary_model  # Default
+    
+    # Estimate cost
+    estimated_cost = tracker.estimate_cost(
+        model=model,
+        input_tokens=estimated_tokens,
+        output_tokens=int(estimated_tokens * 0.5),  # Rough estimate
+        is_batch=config.batch_api_calls
+    )
+    
+    # Check if within budget
+    projected_total = tracker.total_cost + estimated_cost
+    budget_available = projected_total <= config.max_cost_per_run
+    
+    if not budget_available:
+        logger.warning(
+            f"Operation '{operation}' would exceed budget: "
+            f"${projected_total:.4f} > ${config.max_cost_per_run:.2f}"
+        )
+    
+    return budget_available
+
+
+def print_cost_summary(state: GraphState) -> None:
+    """
+    Print a cost summary for the current pipeline run.
+    
+    Args:
+        state: Current GraphState
+    """
+    config = state.get("config")
+    if not config or not config.enable_cost_tracking:
+        print("Cost tracking is disabled.")
+        return
+    
+    tracker = state.get("cost_tracker")
+    if tracker is None:
+        print("No cost data available.")
+        return
+    
+    # Generate and print report
+    tracker.print_summary()
+
+
+def get_cost_recommendations(state: GraphState) -> List[str]:
+    """
+    Get cost-saving recommendations based on current usage.
+    
+    Args:
+        state: Current GraphState
+        
+    Returns:
+        List of recommendation strings
+    """
+    config = state.get("config")
+    if not config or not config.enable_cost_tracking:
+        return []
+    
+    tracker = state.get("cost_tracker")
+    if tracker is None:
+        return []
+    
+    return tracker._generate_recommendations()
+
+
+def save_cost_report(state: GraphState, output_path: str) -> Optional[str]:
+    """
+    Save cost report to a JSON file.
+    
+    Args:
+        state: Current GraphState
+        output_path: Path to output file
+        
+    Returns:
+        Path to saved file, or None if cost tracking disabled
+    """
+    config = state.get("config")
+    if not config or not config.enable_cost_tracking:
+        logger.warning("Cost tracking disabled, cannot save report")
+        return None
+    
+    tracker = state.get("cost_tracker")
+    if tracker is None:
+        logger.warning("No cost tracker initialized")
+        return None
+    
+    return tracker.save_report(output_path)
+

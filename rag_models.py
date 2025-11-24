@@ -1548,12 +1548,13 @@ class DataValidator:
             doc = fitz.open(file_path)
             validation_result["is_readable"] = True
             validation_result["page_count"] = len(doc)
-            doc.close()
             
             if len(doc) == 0:
                 validation_result["valid"] = False
                 validation_result["errors"].append("PDF has 0 pages")
+                doc.close()
                 raise PDFValidationError(f"PDF has 0 pages: {file_path}")
+            doc.close()
         
         except Exception as e:
             validation_result["valid"] = False

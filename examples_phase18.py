@@ -404,6 +404,7 @@ def example_complete_workflow():
         # Use retry handler for API calls
         result = retry_handler.retry_with_backoff(process_paper_with_api)
         print("Processing succeeded ✓")
+        print(f"Result: {result}")
     except Exception as e:
         print(f"Processing failed: {e}")
         

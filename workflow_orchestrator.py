@@ -16,12 +16,14 @@ Version: 1.0
 Date: 2025-11-24
 """
 
+import json
 import logging
 import pickle
+import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Literal, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,8 @@ except ImportError:
 from rag_models import (
     RunConfig,
     PaperRecord,
+    PaperChunk,
+    TopicHierarchy,
     GraphState,
     StateManager,
 )

@@ -16,14 +16,12 @@ Version: 1.0
 Date: 2025-11-24
 """
 
-import json
 import logging
 import pickle
-import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Literal, Callable
+from typing import Dict, List, Optional, Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +38,6 @@ except ImportError:
 from rag_models import (
     RunConfig,
     PaperRecord,
-    PaperChunk,
-    TopicHierarchy,
     GraphState,
     StateManager,
 )
@@ -523,7 +519,13 @@ class WorkflowBuilder:
             
             try:
                 if EMBEDDING_GENERATOR_AVAILABLE:
-                    state = embedding_generation_worker(state)
+                    # embedding_generation_worker requires (state, api_key)
+                    import os
+                    api_key = os.getenv("OPENAI_API_KEY", "")
+                    if not api_key:
+                        logger.error("OPENAI_API_KEY not set")
+                        raise ValueError("OPENAI_API_KEY environment variable required")
+                    state = embedding_generation_worker(state, api_key)
                 else:
                     logger.warning("Embedding generator not available")
                 
@@ -549,7 +551,13 @@ class WorkflowBuilder:
             
             try:
                 if SUMMARIZATION_AVAILABLE:
-                    state = summarize_papers_worker(state)
+                    # summarize_papers_worker requires (state, api_key)
+                    import os
+                    api_key = os.getenv("OPENAI_API_KEY", "")
+                    if not api_key:
+                        logger.error("OPENAI_API_KEY not set")
+                        raise ValueError("OPENAI_API_KEY environment variable required")
+                    state = summarize_papers_worker(state, api_key)
                 else:
                     logger.warning("Summarization not available")
                 
@@ -575,13 +583,48 @@ class WorkflowBuilder:
             
             try:
                 if TAXONOMY_AVAILABLE:
-                    # Build complete 3-tier taxonomy
-                    hierarchy = build_complete_taxonomy(state)
-                    state["topic_hierarchy"] = hierarchy
+                    # build_complete_taxonomy requires (state, embeddings_array, embedding_id_to_chunk, config, api_key)
+                    import os
+                    api_key = os.getenv("OPENAI_API_KEY", "")
+                    if not api_key:
+                        logger.error("OPENAI_API_KEY not set")
+                        raise ValueError("OPENAI_API_KEY environment variable required")
                     
-                    # If approval not required, auto-approve
-                    if not state["config"].taxonomy_approval_required:
-                        state["taxonomy_approved"] = True
+                    # Get embeddings array from FAISS index
+                    from embedding_generator import load_faiss_index, load_metadata_mapping
+                    if state.get("faiss_index_path") and state.get("faiss_meta_path"):
+                        index = load_faiss_index(state["faiss_index_path"])
+                        metadata_map = load_metadata_mapping(state["faiss_meta_path"])
+                        
+                        # Extract embeddings array
+                        embeddings_array = index.index.reconstruct_n(0, index.index.ntotal)
+                        
+                        # Create embedding_id_to_chunk mapping
+                        embedding_id_to_chunk = {}
+                        for emb_id, meta in metadata_map.items():
+                            chunk_id = meta["chunk_id"]
+                            paper_id = meta["paper_id"]
+                            # Find chunk in state
+                            if paper_id in state["chunks"]:
+                                for chunk in state["chunks"][paper_id]:
+                                    if chunk.chunk_id == chunk_id:
+                                        embedding_id_to_chunk[emb_id] = chunk
+                                        break
+                        
+                        hierarchy = build_complete_taxonomy(
+                            state,
+                            embeddings_array,
+                            embedding_id_to_chunk,
+                            state["config"],
+                            api_key
+                        )
+                        state["topic_hierarchy"] = hierarchy
+                        
+                        # If approval not required, auto-approve
+                        if not state["config"].taxonomy_approval_required:
+                            state["taxonomy_approved"] = True
+                    else:
+                        logger.error("FAISS index not found. Run embedding generation first.")
                 else:
                     logger.warning("Taxonomy builder not available")
                 
@@ -629,7 +672,13 @@ class WorkflowBuilder:
             
             try:
                 if CLASSIFICATION_AVAILABLE:
-                    state = classification_worker(state)
+                    # classification_worker requires (state, api_key)
+                    import os
+                    api_key = os.getenv("OPENAI_API_KEY", "")
+                    if not api_key:
+                        logger.error("OPENAI_API_KEY not set")
+                        raise ValueError("OPENAI_API_KEY environment variable required")
+                    state = classification_worker(state, api_key)
                 else:
                     logger.warning("Classification not available")
                 
@@ -656,12 +705,15 @@ class WorkflowBuilder:
             try:
                 from export_manager import export_final_data
                 
+                # export_final_data requires (state, output_dir)
+                output_dir = state.get("export_dir", "./exports")
+                
                 # Export all data
-                export_paths = export_final_data(state)
+                export_paths = export_final_data(state, output_dir)
                 
                 # Update state with paths
                 for key, path in export_paths.items():
-                    state[key] = path
+                    state[f"export_{key}_path"] = path
                 
                 state["current_phase"] = "export"
                 
@@ -1017,7 +1069,12 @@ def run_summarization_only(state: GraphState) -> GraphState:
     
     if SUMMARIZATION_AVAILABLE:
         from summarization_pass1 import summarize_papers_worker
-        state = summarize_papers_worker(state)
+        import os
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            logger.error("OPENAI_API_KEY not set")
+            raise ValueError("OPENAI_API_KEY environment variable required")
+        state = summarize_papers_worker(state, api_key)
     else:
         logger.warning("Summarization not available")
     
@@ -1041,7 +1098,12 @@ def run_classification_only(state: GraphState) -> GraphState:
     
     if CLASSIFICATION_AVAILABLE:
         from paper_classification import classification_worker
-        state = classification_worker(state)
+        import os
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            logger.error("OPENAI_API_KEY not set")
+            raise ValueError("OPENAI_API_KEY environment variable required")
+        state = classification_worker(state, api_key)
     else:
         logger.warning("Classification not available")
     
@@ -1062,9 +1124,45 @@ def rebuild_taxonomy(state: GraphState) -> GraphState:
     
     if TAXONOMY_AVAILABLE:
         from topic_taxonomy import build_complete_taxonomy
-        hierarchy = build_complete_taxonomy(state)
-        state["topic_hierarchy"] = hierarchy
-        state["taxonomy_approved"] = False  # Require re-approval
+        from embedding_generator import load_faiss_index, load_metadata_mapping
+        import os
+        
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            logger.error("OPENAI_API_KEY not set")
+            raise ValueError("OPENAI_API_KEY environment variable required")
+        
+        # Get embeddings array from FAISS index
+        if state.get("faiss_index_path") and state.get("faiss_meta_path"):
+            index = load_faiss_index(state["faiss_index_path"])
+            metadata_map = load_metadata_mapping(state["faiss_meta_path"])
+            
+            # Extract embeddings array
+            embeddings_array = index.index.reconstruct_n(0, index.index.ntotal)
+            
+            # Create embedding_id_to_chunk mapping
+            embedding_id_to_chunk = {}
+            for emb_id, meta in metadata_map.items():
+                chunk_id = meta["chunk_id"]
+                paper_id = meta["paper_id"]
+                # Find chunk in state
+                if paper_id in state["chunks"]:
+                    for chunk in state["chunks"][paper_id]:
+                        if chunk.chunk_id == chunk_id:
+                            embedding_id_to_chunk[emb_id] = chunk
+                            break
+            
+            hierarchy = build_complete_taxonomy(
+                state,
+                embeddings_array,
+                embedding_id_to_chunk,
+                state["config"],
+                api_key
+            )
+            state["topic_hierarchy"] = hierarchy
+            state["taxonomy_approved"] = False  # Require re-approval
+        else:
+            logger.error("FAISS index not found. Run embedding generation first.")
     else:
         logger.warning("Taxonomy builder not available")
     

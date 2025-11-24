@@ -17,8 +17,6 @@ This test suite ensures comprehensive workflow orchestration.
 import sys
 import tempfile
 from pathlib import Path
-from datetime import datetime, date
-import json
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -29,7 +27,6 @@ from rag_models import (
     TopicHierarchy,
     StateManager,
     create_default_config,
-    GraphState,
 )
 
 from workflow_orchestrator import (
@@ -47,8 +44,6 @@ from workflow_orchestrator import (
     CheckpointManager,
     
     # Step 13.4: Execution Controller
-    run_full_pipeline,
-    run_ingestion_only,
     run_summarization_only,
     run_classification_only,
     rebuild_taxonomy,
@@ -338,9 +333,6 @@ def test_run_ingestion_only():
     print("\n=== Test: Run Ingestion Only ===")
     
     try:
-        config = create_default_config()
-        state = create_sample_state()
-        
         # This would actually run the workflow in a real scenario
         # For now, just test the function exists and can be called
         print("✓ run_ingestion_only function available")
@@ -361,7 +353,7 @@ def test_run_summarization_only():
     
     # Test function exists
     try:
-        result = run_summarization_only(state)
+        run_summarization_only(state)
         print("✓ run_summarization_only executed")
     except Exception as e:
         print(f"⚠ Expected behavior (missing worker): {e}")
@@ -376,7 +368,7 @@ def test_run_classification_only():
     
     # Test function
     try:
-        result = run_classification_only(state)
+        run_classification_only(state)
         print("✓ run_classification_only executed")
     except Exception as e:
         print(f"⚠ Expected behavior (missing worker): {e}")
@@ -390,7 +382,7 @@ def test_rebuild_taxonomy():
     
     # Test function
     try:
-        result = rebuild_taxonomy(state)
+        rebuild_taxonomy(state)
         print("✓ rebuild_taxonomy executed")
     except Exception as e:
         print(f"⚠ Expected behavior (missing worker): {e}")

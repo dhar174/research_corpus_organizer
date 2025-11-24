@@ -15,7 +15,7 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phases 0, 1, 2, 3, 4, and 5 Complete ✓
+**Current Phase:** Phases 0-13 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
@@ -23,7 +23,15 @@ This project implements an intelligent pipeline for:
 - ✅ Phase 3: PDF parsing and chunking (COMPLETE - see PHASE3_COMPLETION.md)
 - ✅ Phase 4: Metadata extraction (COMPLETE - see PHASE4_COMPLETION.md)
 - ✅ Phase 5: Embedding generation and FAISS index (COMPLETE - see PHASE5_COMPLETION.md)
-- 🔄 Phases 6-22: Summarization, taxonomy, classification, RAG interface (planned)
+- ✅ Phase 6: Summarization (Pass 1) (COMPLETE - see PHASE6_COMPLETION.md)
+- ✅ Phase 7: Initial CSV export (COMPLETE - see PHASE7_COMPLETION.md)
+- ✅ Phase 8: Topic modeling and taxonomy (COMPLETE - see PHASE8_COMPLETION.md)
+- ✅ Phase 9: Taxonomy review and approval (COMPLETE - see PHASE9_COMPLETION.md)
+- ✅ Phase 10: Final topic classification (COMPLETE - see PHASE10_COMPLETION.md)
+- ✅ Phase 11: Deep analysis pass (optional) (COMPLETE - see PHASE11_COMPLETION.md)
+- ✅ Phase 12: Final CSV/Parquet export (COMPLETE - see PHASE12_COMPLETION.md)
+- ✅ Phase 13: LangGraph workflow integration (COMPLETE - see PHASE13_COMPLETION.md)
+- 🔄 Phases 14-22: Quality control, RAG interface, utilities, testing (planned)
 
 ## Quick Start
 
@@ -103,13 +111,48 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - save_faiss_index/load_faiss_index: Persist and reload index
   - embedding_generation_worker: LangGraph worker node
   - Cost estimation and tracking
+- `summarization_pass1.py` - Paper summarization with GPT-5 (Phase 6)
+  - SummaryGenerator: Generate comprehensive paper summaries
+  - SummaryPromptFactory: Create structured prompts
+  - batch_summarize_papers: Process papers in batches
+  - summarize_papers_worker: LangGraph worker node
+  - Summary validation and quality checks
+- `topic_taxonomy.py` - Topic modeling and 3-tier taxonomy (Phase 8)
+  - build_tier1_taxonomy: Broad topic clustering
+  - build_tier2_taxonomy: Mid-level topic clustering
+  - build_tier3_taxonomy: Fine-grained topic clustering
+  - TopicLabelGenerator: Generate topic labels with GPT-5
+  - build_complete_taxonomy: Create full 3-tier hierarchy
+  - Clustering with KMeans/Agglomerative algorithms
+- `paper_classification.py` - Paper classification into taxonomy (Phase 10)
+  - PaperClassifier: Classify papers into topics
+  - build_classification_prompt: Create classification prompts
+  - batch_classify_papers: Process papers in batches
+  - classification_worker: LangGraph worker node
+  - Validation and consistency checks
+- `export_manager.py` - Data export and artifact management (Phases 7, 12)
+  - export_final_data: Export all data and artifacts
+  - export_full_csv/export_summary_csv: CSV exports
+  - export_to_json: JSON export
+  - generate_statistics_report: Create statistics
+  - save_all_artifacts: Persist all outputs
+- `workflow_orchestrator.py` - LangGraph workflow integration (Phase 13)
+  - WorkflowBuilder: Build complete StateGraph
+  - SupervisorCoordinator: Coordinate workflow execution
+  - CheckpointManager: Save/load state, resume capability
+  - WorkflowExecutor: User-friendly execution controller
+  - QualityController: Data quality checks
+  - ErrorRecoveryManager: Error handling and retry logic
+  - run_full_pipeline: Complete end-to-end execution
+  - run_ingestion_only/run_summarization_only: Selective execution
+  - Visualization, monitoring, and progress tracking
 
 ### Utilities
 - `notebook_builder.py` - Generate complete standalone notebooks
 
 ## Features
 
-### Implemented (Phases 0, 1, 2, 3, 4, & 5)
+### Implemented (Phases 0-13)
 - ✅ Environment inspection (Python version, GPU/CPU, system resources)
 - ✅ Dependency installation (18 packages with version pinning)
 - ✅ Import management with error handling
@@ -150,14 +193,47 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
 - ✅ Index persistence (save/load with versioning)
 - ✅ Index validation and integrity checks
 - ✅ Search functionality for RAG queries
+- ✅ GPT-5 summarization with reasoning effort
+- ✅ Structured prompt generation for summaries
+- ✅ Initial analysis notes generation
+- ✅ Batch processing with rate limiting
+- ✅ Summary quality validation
+- ✅ CSV export with all metadata
+- ✅ Parquet export for large datasets
+- ✅ Export validation and statistics
+- ✅ Paper-level embedding generation
+- ✅ 3-tier hierarchical taxonomy construction
+- ✅ KMeans/Agglomerative clustering algorithms
+- ✅ GPT-5 topic label generation
+- ✅ Cluster visualization and statistics
+- ✅ Taxonomy validation and consistency checks
+- ✅ Taxonomy review and approval workflow
+- ✅ Taxonomy export to JSON
+- ✅ Topic classification with GPT-5 reasoning
+- ✅ Confidence scoring for classifications
+- ✅ Tier consistency validation
+- ✅ Classification batch processing
+- ✅ Deep analysis pass (optional, detailed summaries)
+- ✅ Final data export (CSV, Parquet, JSON)
+- ✅ Export variants (full, summary)
+- ✅ Statistics and quality reports
+- ✅ Artifact management (FAISS, taxonomy, exports)
+- ✅ **LangGraph workflow orchestration**
+- ✅ **Supervisor pattern for stage coordination**
+- ✅ **Checkpoint system (save/resume)**
+- ✅ **Google Drive checkpoint backup**
+- ✅ **Multiple execution modes (full, partial, selective)**
+- ✅ **Quality control checks and validation**
+- ✅ **Cost and time tracking**
+- ✅ **Error handling and retry logic**
+- ✅ **Progress monitoring and visualization**
+- ✅ **Workflow state display and reporting**
 
-### Planned (Phases 6-22)
-- 📋 GPT-5.1 summarization (multiple passes)
-- 📋 3-tier taxonomy generation via clustering
-- 📋 Topic classification with reasoning
+### Planned (Phases 14-22)
+- 📋 Additional quality control and validation
 - 📋 RAG query interface
-- 📋 Quality control and validation
-- 📋 Export to CSV/Parquet
+- 📋 Utility functions and tools
+- 📋 Advanced features and enhancements
 
 ## System Architecture
 

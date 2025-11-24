@@ -186,7 +186,7 @@ class QCDashboard:
                 })
         return failed
     
-    def get_quality_score_distribution(self) -> Dict[str, int]:
+    def get_quality_score_distribution(self) -> Dict[str, Any]:
         """
         Get distribution of quality scores.
         

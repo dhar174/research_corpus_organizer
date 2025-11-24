@@ -1578,13 +1578,13 @@ class CostTracker:
         """
         # Normalize model name (handle variants)
         model_key = model.lower()
-        if "gpt-5-mini" in model_key or "gpt-5-mini" == model_key:
+        if model_key == "gpt-5-mini" or model_key.startswith("gpt-5-mini-"):
             model_key = "gpt-5-mini"
-        elif "gpt-5" in model_key:
+        elif model_key == "gpt-5" or model_key.startswith("gpt-5-"):
             model_key = "gpt-5"
-        elif "o4-mini" in model_key:
+        elif model_key == "o4-mini" or model_key.startswith("o4-mini-"):
             model_key = "o4-mini"
-        elif "o4" in model_key:
+        elif model_key == "o4" or model_key.startswith("o4-"):
             model_key = "o4"
         elif "text-embedding-3-small" in model_key:
             model_key = "text-embedding-3-small"

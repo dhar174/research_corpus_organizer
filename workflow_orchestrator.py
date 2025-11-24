@@ -1731,7 +1731,7 @@ def update_cost_tracking(
     
     try:
         # Record the API call
-        tracker.record_api_call(
+        record = tracker.record_api_call(
             operation=operation,
             model=model,
             input_tokens=input_tokens,
@@ -1745,7 +1745,7 @@ def update_cost_tracking(
         state["total_cost"] = tracker.total_cost
         state["cost_breakdown"] = tracker.cost_by_operation.copy()
         
-        logger.debug(f"Cost updated: ${tracker.total_cost:.4f} (+${tracker.api_calls[-1].estimated_cost:.4f})")
+        logger.debug(f"Cost updated: ${tracker.total_cost:.4f} (+${record.estimated_cost:.4f})")
         
     except BudgetExceededError as e:
         logger.error(f"Budget exceeded: {e}")

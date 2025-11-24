@@ -1726,7 +1726,8 @@ class CostTracker:
         """
         import hashlib
         key_data = json.dumps({"op": operation, **kwargs}, sort_keys=True)
-        return hashlib.md5(key_data.encode()).hexdigest()
+        # Using SHA256 for cache key generation (non-security use case)
+        return hashlib.sha256(key_data.encode()).hexdigest()
     
     def get_cached_result(self, cache_key: str) -> Optional[Any]:
         """

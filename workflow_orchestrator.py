@@ -128,6 +128,9 @@ __all__ = [
     # Error Handling & Recovery
     'retry_failed_papers',
     'list_failed_papers',
+    'get_recovery_options',
+    'create_recovery_checkpoint',
+    'rollback_to_checkpoint',
     'ErrorRecoveryManager',
     
     # Phase 17: Cost Tracking Integration
@@ -1549,7 +1552,13 @@ def track_costs_and_time(state: GraphState) -> Dict[str, Any]:
 
 class ErrorRecoveryManager:
     """
-    Manages error recovery and retry logic for failed papers.
+    Manages error recovery and retry logic for failed papers (Phase 18: Step 18.4).
+    
+    Enhanced with:
+    - Checkpoint-based recovery
+    - Selective retry of failed papers
+    - Manual intervention options
+    - Rollback capabilities
     """
     
     def __init__(self, max_retries: int = 3):
@@ -1575,6 +1584,26 @@ class ErrorRecoveryManager:
         return [
             paper for paper in state.get("papers", {}).values()
             if paper.processing_status == "failed"
+        ]
+    
+    def get_failed_papers_by_stage(
+        self,
+        state: GraphState,
+        stage: str
+    ) -> List[PaperRecord]:
+        """
+        Get list of papers that failed at a specific stage (Phase 18: Step 18.4).
+        
+        Args:
+            state: Current GraphState
+            stage: Processing stage (e.g., 'parsing', 'summarization')
+            
+        Returns:
+            List of PaperRecords that failed at the specified stage
+        """
+        return [
+            paper for paper in state.get("papers", {}).values()
+            if paper.processing_status == "failed" and paper.error_stage == stage
         ]
     
     def retry_paper(self, state: GraphState, paper_id: str) -> GraphState:
@@ -1613,21 +1642,243 @@ class ErrorRecoveryManager:
         self.logger.info(f"Retry {paper.retry_count}/{self.max_retries} for {paper_id}")
         
         return state
+    
+    def retry_failed_papers_selective(
+        self,
+        state: GraphState,
+        filter_stage: Optional[str] = None,
+        filter_error_type: Optional[str] = None,
+        max_papers: Optional[int] = None
+    ) -> GraphState:
+        """
+        Selectively retry failed papers based on criteria (Phase 18: Step 18.4).
+        
+        Args:
+            state: Current GraphState
+            filter_stage: Only retry papers that failed at this stage
+            filter_error_type: Only retry papers with this error type
+            max_papers: Maximum number of papers to retry
+            
+        Returns:
+            Updated GraphState with selected papers reset for retry
+        """
+        failed_papers = self.get_failed_papers(state)
+        
+        # Apply filters
+        if filter_stage:
+            failed_papers = [p for p in failed_papers if p.error_stage == filter_stage]
+        
+        if filter_error_type:
+            failed_papers = [
+                p for p in failed_papers 
+                if filter_error_type.lower() in (p.error_reason or "").lower()
+            ]
+        
+        # Limit number of retries
+        if max_papers:
+            failed_papers = failed_papers[:max_papers]
+        
+        self.logger.info(f"Retrying {len(failed_papers)} papers (filtered)")
+        
+        for paper in failed_papers:
+            state = self.retry_paper(state, paper.id)
+        
+        return state
+    
+    def create_recovery_checkpoint(
+        self,
+        state: GraphState,
+        checkpoint_dir: Optional[str] = None
+    ) -> str:
+        """
+        Create a checkpoint before attempting recovery (Phase 18: Step 18.4).
+        
+        Args:
+            state: Current GraphState
+            checkpoint_dir: Directory for checkpoints
+            
+        Returns:
+            Path to created checkpoint
+        """
+        checkpoint_name = f"pre_recovery_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        manager = CheckpointManager(Path(checkpoint_dir) if checkpoint_dir else None)
+        checkpoint_path = manager.save(state, checkpoint_name)
+        
+        self.logger.info(f"Recovery checkpoint created: {checkpoint_path}")
+        
+        return checkpoint_path
+    
+    def rollback_to_checkpoint(
+        self,
+        checkpoint_name: str,
+        checkpoint_dir: Optional[str] = None
+    ) -> GraphState:
+        """
+        Rollback to a previous checkpoint (Phase 18: Step 18.4).
+        
+        Args:
+            checkpoint_name: Name of checkpoint to rollback to
+            checkpoint_dir: Directory containing checkpoints
+            
+        Returns:
+            Restored GraphState
+        """
+        manager = CheckpointManager(Path(checkpoint_dir) if checkpoint_dir else None)
+        state = manager.load(checkpoint_name)
+        
+        self.logger.info(f"Rolled back to checkpoint: {checkpoint_name}")
+        
+        return state
+    
+    def get_recovery_options(self, state: GraphState) -> Dict[str, Any]:
+        """
+        Get available recovery options for current state (Phase 18: Step 18.4).
+        
+        Args:
+            state: Current GraphState
+            
+        Returns:
+            Dictionary describing available recovery actions
+        """
+        failed_papers = self.get_failed_papers(state)
+        
+        # Group by stage and error type
+        by_stage = {}
+        by_error = {}
+        retryable = []
+        
+        for paper in failed_papers:
+            stage = paper.error_stage or "unknown"
+            error = paper.error_reason or "unknown"
+            
+            by_stage[stage] = by_stage.get(stage, 0) + 1
+            by_error[error] = by_error.get(error, 0) + 1
+            
+            if paper.retry_count < self.max_retries:
+                retryable.append(paper.id)
+        
+        return {
+            "total_failed": len(failed_papers),
+            "retryable": len(retryable),
+            "max_retries_reached": len(failed_papers) - len(retryable),
+            "failures_by_stage": by_stage,
+            "failures_by_error": by_error,
+            "recommended_actions": self._generate_recovery_recommendations(
+                failed_papers, by_stage, by_error
+            ),
+        }
+    
+    def _generate_recovery_recommendations(
+        self,
+        failed_papers: List[PaperRecord],
+        by_stage: Dict[str, int],
+        by_error: Dict[str, int]
+    ) -> List[str]:
+        """
+        Generate recovery recommendations based on failure patterns.
+        
+        Args:
+            failed_papers: List of failed papers
+            by_stage: Count of failures by stage
+            by_error: Count of failures by error type
+            
+        Returns:
+            List of recommendation strings
+        """
+        recommendations = []
+        
+        if not failed_papers:
+            return ["No failed papers to recover."]
+        
+        # Check for common error patterns
+        total_failed = len(failed_papers)
+        
+        # Stage-specific recommendations
+        if by_stage.get("parsing", 0) > total_failed * 0.5:
+            recommendations.append(
+                "Many failures in parsing stage. Consider enabling OCR fallback "
+                "or checking PDF file integrity."
+            )
+        
+        if by_stage.get("metadata", 0) > total_failed * 0.3:
+            recommendations.append(
+                "Multiple metadata extraction failures. Check arXiv/CrossRef API connectivity."
+            )
+        
+        # Error-specific recommendations
+        for error, count in by_error.items():
+            error_lower = error.lower()
+            
+            if "rate limit" in error_lower or "429" in error_lower:
+                recommendations.append(
+                    f"{count} rate limit errors. Consider increasing retry delay or "
+                    "enabling batch processing."
+                )
+            
+            if "timeout" in error_lower or "network" in error_lower:
+                recommendations.append(
+                    f"{count} network errors. Check internet connection and retry."
+                )
+            
+            if "quota" in error_lower or "exceeded" in error_lower:
+                recommendations.append(
+                    f"{count} quota errors. Check API limits and consider upgrading plan."
+                )
+        
+        # General recommendations
+        retryable = sum(1 for p in failed_papers if p.retry_count < self.max_retries)
+        if retryable > 0:
+            recommendations.append(
+                f"{retryable} papers can be retried. Use retry_failed_papers() to attempt recovery."
+            )
+        
+        max_retries_reached = total_failed - retryable
+        if max_retries_reached > 0:
+            recommendations.append(
+                f"{max_retries_reached} papers have reached max retries. "
+                "Consider manual intervention or increasing max_retries."
+            )
+        
+        return recommendations
 
 
-def retry_failed_papers(state: GraphState, max_retries: int = 3) -> GraphState:
+def retry_failed_papers(
+    state: GraphState,
+    max_retries: int = 3,
+    filter_stage: Optional[str] = None,
+    filter_error_type: Optional[str] = None,
+    max_papers: Optional[int] = None
+) -> GraphState:
     """
-    Retry all failed papers.
+    Retry failed papers with optional filtering (Phase 18: Step 18.4).
     
     Args:
         state: Current GraphState
         max_retries: Maximum retry attempts per paper
+        filter_stage: Only retry papers that failed at this stage
+        filter_error_type: Only retry papers with this error type
+        max_papers: Maximum number of papers to retry
         
     Returns:
         Updated GraphState with failed papers reset for retry
     """
     manager = ErrorRecoveryManager(max_retries)
     
+    # Use selective retry if filters provided
+    if filter_stage or filter_error_type or max_papers:
+        logger.info(
+            f"Selective retry: stage={filter_stage}, "
+            f"error_type={filter_error_type}, max={max_papers}"
+        )
+        return manager.retry_failed_papers_selective(
+            state,
+            filter_stage=filter_stage,
+            filter_error_type=filter_error_type,
+            max_papers=max_papers
+        )
+    
+    # Otherwise retry all failed papers
     failed_papers = manager.get_failed_papers(state)
     logger.info(f"Retrying {len(failed_papers)} failed papers")
     
@@ -1660,6 +1911,57 @@ def list_failed_papers(state: GraphState) -> List[Dict[str, Any]]:
             })
     
     return failed
+
+
+def get_recovery_options(state: GraphState, max_retries: int = 3) -> Dict[str, Any]:
+    """
+    Get available recovery options for current state (Phase 18: Step 18.4).
+    
+    Args:
+        state: Current GraphState
+        max_retries: Maximum retry attempts per paper
+        
+    Returns:
+        Dictionary describing available recovery actions
+    """
+    manager = ErrorRecoveryManager(max_retries)
+    return manager.get_recovery_options(state)
+
+
+def create_recovery_checkpoint(
+    state: GraphState,
+    checkpoint_dir: Optional[str] = None
+) -> str:
+    """
+    Create a checkpoint before attempting recovery (Phase 18: Step 18.4).
+    
+    Args:
+        state: Current GraphState
+        checkpoint_dir: Directory for checkpoints
+        
+    Returns:
+        Path to created checkpoint
+    """
+    manager = ErrorRecoveryManager()
+    return manager.create_recovery_checkpoint(state, checkpoint_dir)
+
+
+def rollback_to_checkpoint(
+    checkpoint_name: str,
+    checkpoint_dir: Optional[str] = None
+) -> GraphState:
+    """
+    Rollback to a previous checkpoint (Phase 18: Step 18.4).
+    
+    Args:
+        checkpoint_name: Name of checkpoint to rollback to
+        checkpoint_dir: Directory containing checkpoints
+        
+    Returns:
+        Restored GraphState
+    """
+    manager = ErrorRecoveryManager()
+    return manager.rollback_to_checkpoint(checkpoint_name, checkpoint_dir)
 
 
 # =============================================================================

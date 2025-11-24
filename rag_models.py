@@ -50,6 +50,16 @@ __all__ = [
     'CostReport',
     'BudgetExceededError',
     
+    # Error Handling & Retry (Phase 18)
+    'APIError',
+    'RateLimitError',
+    'QuotaExceededError',
+    'TransientAPIError',
+    'RetryHandler',
+    'ValidationError',
+    'PDFValidationError',
+    'DataValidator',
+    
     # Utility Functions
     'validate_paper_record',
     'export_papers_to_csv',
@@ -1122,11 +1132,18 @@ class StatisticsTracker:
 
 class ErrorHandler:
     """
-    Utility class for error handling and logging.
+    Utility class for error handling and logging (Phase 18: Step 18.1).
+    
+    Enhanced to support:
+    - Comprehensive error logging with context
+    - Paper status updates
+    - Error categorization and analysis
+    - Structured error reporting
     """
     
     def __init__(self):
         self.errors: List[Dict[str, Any]] = []
+        self.logger = logging.getLogger(f"{__name__}.ErrorHandler")
     
     def log_error(
         self,
@@ -1135,7 +1152,15 @@ class ErrorHandler:
         error: Exception,
         context: Optional[Dict[str, Any]] = None
     ):
-        """Log an error with context."""
+        """
+        Log an error with context.
+        
+        Args:
+            paper_id: ID of the paper where error occurred
+            stage: Processing stage where error occurred
+            error: Exception object
+            context: Additional context information
+        """
         error_record = {
             "paper_id": paper_id,
             "stage": stage,
@@ -1145,7 +1170,42 @@ class ErrorHandler:
             "context": context or {}
         }
         self.errors.append(error_record)
-        logger.error(f"Error in {stage} for {paper_id}: {error}")
+        self.logger.error(f"Error in {stage} for {paper_id}: {error}")
+    
+    def update_paper_on_error(
+        self,
+        paper: PaperRecord,
+        stage: str,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None
+    ) -> PaperRecord:
+        """
+        Update paper record when an error occurs (Phase 18: Step 18.1).
+        
+        Args:
+            paper: PaperRecord to update
+            stage: Processing stage where error occurred
+            error: Exception object
+            context: Additional context
+            
+        Returns:
+            Updated PaperRecord with error information
+        """
+        # Log the error
+        self.log_error(paper.id, stage, error, context)
+        
+        # Update paper status
+        paper.processing_status = "failed"
+        paper.error_reason = str(error)
+        paper.error_stage = stage
+        paper.retry_count += 1
+        paper.last_updated = datetime.now()
+        
+        self.logger.warning(
+            f"Paper {paper.id} failed at {stage}: {error} (retry #{paper.retry_count})"
+        )
+        
+        return paper
     
     def get_errors_by_paper(self, paper_id: str) -> List[Dict[str, Any]]:
         """Get all errors for a specific paper."""
@@ -1155,10 +1215,49 @@ class ErrorHandler:
         """Get all errors for a specific stage."""
         return [e for e in self.errors if e["stage"] == stage]
     
+    def get_error_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of all errors (Phase 18: Step 18.1).
+        
+        Returns:
+            Dictionary with error statistics and categorization
+        """
+        if not self.errors:
+            return {
+                "total_errors": 0,
+                "by_stage": {},
+                "by_type": {},
+                "recent_errors": []
+            }
+        
+        by_stage = {}
+        by_type = {}
+        
+        for error in self.errors:
+            stage = error["stage"]
+            error_type = error["error_type"]
+            
+            by_stage[stage] = by_stage.get(stage, 0) + 1
+            by_type[error_type] = by_type.get(error_type, 0) + 1
+        
+        # Get 10 most recent errors
+        recent = sorted(self.errors, key=lambda e: e["timestamp"], reverse=True)[:10]
+        
+        return {
+            "total_errors": len(self.errors),
+            "by_stage": by_stage,
+            "by_type": by_type,
+            "recent_errors": recent
+        }
+    
     def export_errors(self, filepath: str):
         """Export errors to JSON file."""
         with open(filepath, 'w') as f:
-            json.dump(self.errors, f, indent=2)
+            json.dump({
+                "errors": self.errors,
+                "summary": self.get_error_summary()
+            }, f, indent=2)
+        self.logger.info(f"Exported {len(self.errors)} errors to {filepath}")
 
 
 class IDGenerator:
@@ -1193,6 +1292,339 @@ class IDGenerator:
         clean_label = "".join(c if c.isalnum() else "_" for c in label)
         clean_label = clean_label[:20]  # Limit length
         return f"T{tier}_{clean_label}_{index}"
+
+
+# =============================================================================
+# Phase 18: API Error Handling and Retry Logic (Step 18.2)
+# =============================================================================
+
+class APIError(Exception):
+    """Base exception for API-related errors."""
+    pass
+
+
+class RateLimitError(APIError):
+    """Exception raised when API rate limit is hit."""
+    pass
+
+
+class QuotaExceededError(APIError):
+    """Exception raised when API quota is exceeded."""
+    pass
+
+
+class TransientAPIError(APIError):
+    """Exception for transient API errors that should be retried."""
+    pass
+
+
+class RetryHandler:
+    """
+    Handler for API retry logic with exponential backoff (Phase 18: Step 18.2).
+    
+    Implements:
+    - Exponential backoff strategy
+    - Rate limit handling (429 errors)
+    - Transient failure retry
+    - Quota exceeded handling
+    """
+    
+    def __init__(
+        self,
+        max_retries: int = 5,
+        initial_delay: float = 1.0,
+        max_delay: float = 60.0,
+        backoff_factor: float = 2.0
+    ):
+        """
+        Initialize retry handler.
+        
+        Args:
+            max_retries: Maximum number of retry attempts
+            initial_delay: Initial delay in seconds
+            max_delay: Maximum delay in seconds
+            backoff_factor: Multiplier for exponential backoff
+        """
+        self.max_retries = max_retries
+        self.initial_delay = initial_delay
+        self.max_delay = max_delay
+        self.backoff_factor = backoff_factor
+        self.logger = logging.getLogger(f"{__name__}.RetryHandler")
+    
+    def calculate_delay(self, attempt: int) -> float:
+        """
+        Calculate delay for exponential backoff.
+        
+        Args:
+            attempt: Current retry attempt number (0-indexed)
+            
+        Returns:
+            Delay in seconds
+        """
+        delay = self.initial_delay * (self.backoff_factor ** attempt)
+        return min(delay, self.max_delay)
+    
+    def retry_with_backoff(
+        self,
+        func: Callable,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Execute function with retry logic and exponential backoff.
+        
+        Args:
+            func: Function to execute
+            *args: Positional arguments for function
+            **kwargs: Keyword arguments for function
+            
+        Returns:
+            Result from function
+            
+        Raises:
+            Exception: If all retries are exhausted
+        """
+        last_exception = None
+        
+        for attempt in range(self.max_retries):
+            try:
+                return func(*args, **kwargs)
+            
+            except RateLimitError as e:
+                last_exception = e
+                if attempt < self.max_retries - 1:
+                    delay = self.calculate_delay(attempt)
+                    self.logger.warning(
+                        f"Rate limit hit (attempt {attempt + 1}/{self.max_retries}). "
+                        f"Waiting {delay:.1f}s before retry..."
+                    )
+                    import time
+                    time.sleep(delay)
+                else:
+                    self.logger.error(f"Rate limit: Max retries exhausted")
+                    raise
+            
+            except TransientAPIError as e:
+                last_exception = e
+                if attempt < self.max_retries - 1:
+                    delay = self.calculate_delay(attempt)
+                    self.logger.warning(
+                        f"Transient error (attempt {attempt + 1}/{self.max_retries}): {e}. "
+                        f"Waiting {delay:.1f}s before retry..."
+                    )
+                    import time
+                    time.sleep(delay)
+                else:
+                    self.logger.error(f"Transient error: Max retries exhausted")
+                    raise
+            
+            except QuotaExceededError as e:
+                self.logger.error(f"Quota exceeded: {e}")
+                raise  # Don't retry quota errors
+            
+            except Exception as e:
+                # Check if it's a known API error pattern
+                error_str = str(e).lower()
+                
+                if "rate" in error_str and "limit" in error_str:
+                    # Convert to RateLimitError and retry
+                    last_exception = RateLimitError(str(e))
+                    if attempt < self.max_retries - 1:
+                        delay = self.calculate_delay(attempt)
+                        self.logger.warning(
+                            f"Detected rate limit (attempt {attempt + 1}/{self.max_retries}). "
+                            f"Waiting {delay:.1f}s before retry..."
+                        )
+                        import time
+                        time.sleep(delay)
+                    else:
+                        raise RateLimitError(str(e))
+                
+                elif "quota" in error_str or "exceeded" in error_str:
+                    raise QuotaExceededError(str(e))
+                
+                elif any(keyword in error_str for keyword in ["timeout", "connection", "network"]):
+                    # Transient network error
+                    last_exception = TransientAPIError(str(e))
+                    if attempt < self.max_retries - 1:
+                        delay = self.calculate_delay(attempt)
+                        self.logger.warning(
+                            f"Network error (attempt {attempt + 1}/{self.max_retries}): {e}. "
+                            f"Waiting {delay:.1f}s before retry..."
+                        )
+                        import time
+                        time.sleep(delay)
+                    else:
+                        raise TransientAPIError(str(e))
+                else:
+                    # Unknown error, don't retry
+                    raise
+        
+        # Should not reach here, but if we do, raise the last exception
+        if last_exception:
+            raise last_exception
+
+
+# =============================================================================
+# Phase 18: Data Validation Error Handling (Step 18.3)
+# =============================================================================
+
+class ValidationError(Exception):
+    """Exception raised when data validation fails."""
+    pass
+
+
+class PDFValidationError(ValidationError):
+    """Exception raised when PDF validation fails."""
+    pass
+
+
+class DataValidator:
+    """
+    Validator for data quality and format checking (Phase 18: Step 18.3).
+    
+    Handles:
+    - PDF file validation
+    - Corrupt file detection
+    - Format verification
+    - Pre-processing validation
+    """
+    
+    def __init__(self):
+        self.logger = logging.getLogger(f"{__name__}.DataValidator")
+    
+    def validate_pdf_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Validate PDF file before processing.
+        
+        Args:
+            file_path: Path to PDF file
+            
+        Returns:
+            Dictionary with validation results
+            
+        Raises:
+            PDFValidationError: If validation fails
+        """
+        import os
+        
+        validation_result = {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "file_size": 0,
+            "is_readable": False,
+        }
+        
+        # Check file exists
+        if not os.path.exists(file_path):
+            validation_result["valid"] = False
+            validation_result["errors"].append(f"File does not exist: {file_path}")
+            raise PDFValidationError(f"File does not exist: {file_path}")
+        
+        # Check file size
+        file_size = os.path.getsize(file_path)
+        validation_result["file_size"] = file_size
+        
+        if file_size == 0:
+            validation_result["valid"] = False
+            validation_result["errors"].append("File is empty (0 bytes)")
+            raise PDFValidationError(f"File is empty: {file_path}")
+        
+        if file_size < 100:  # Suspiciously small
+            validation_result["warnings"].append(
+                f"File is very small ({file_size} bytes), may be corrupt"
+            )
+        
+        # Check file extension
+        if not file_path.lower().endswith('.pdf'):
+            validation_result["warnings"].append(
+                f"File does not have .pdf extension: {file_path}"
+            )
+        
+        # Try to open with PyMuPDF (basic check)
+        try:
+            import fitz  # PyMuPDF
+            doc = fitz.open(file_path)
+            validation_result["is_readable"] = True
+            validation_result["page_count"] = len(doc)
+            
+            if len(doc) == 0:
+                validation_result["valid"] = False
+                validation_result["errors"].append("PDF has 0 pages")
+                doc.close()
+                raise PDFValidationError(f"PDF has 0 pages: {file_path}")
+            
+            doc.close()
+        
+        except Exception as e:
+            validation_result["valid"] = False
+            validation_result["is_readable"] = False
+            validation_result["errors"].append(f"Cannot open PDF: {str(e)}")
+            raise PDFValidationError(f"Cannot open PDF {file_path}: {str(e)}")
+        
+        return validation_result
+    
+    def validate_paper_record(
+        self,
+        paper: PaperRecord,
+        required_fields: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Validate a PaperRecord for completeness and consistency.
+        
+        Args:
+            paper: PaperRecord to validate
+            required_fields: List of required field names
+            
+        Returns:
+            Dictionary with validation results
+        """
+        validation_result = {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+        }
+        
+        # Default required fields
+        if required_fields is None:
+            required_fields = ["id", "file_path", "filename"]
+        
+        # Check required fields
+        for field in required_fields:
+            value = getattr(paper, field, None)
+            if value is None or value == "":
+                validation_result["errors"].append(f"Missing required field: {field}")
+                validation_result["valid"] = False
+        
+        # Check processing status consistency
+        if paper.processing_status == "failed":
+            if not paper.error_reason:
+                validation_result["warnings"].append(
+                    "Paper marked as failed but no error_reason provided"
+                )
+        
+        # Check metadata consistency
+        if paper.year and paper.publish_date:
+            if paper.year != paper.publish_date.year:
+                validation_result["warnings"].append(
+                    f"Year field ({paper.year}) doesn't match publish_date year ({paper.publish_date.year})"
+                )
+        
+        # Check topic classification consistency
+        if paper.tier2_topic and not paper.tier1_topic:
+            validation_result["errors"].append(
+                "Paper has tier2_topic but missing tier1_topic"
+            )
+            validation_result["valid"] = False
+        
+        if paper.tier3_topic and not paper.tier2_topic:
+            validation_result["errors"].append(
+                "Paper has tier3_topic but missing tier2_topic"
+            )
+            validation_result["valid"] = False
+        
+        return validation_result
 
 
 # =============================================================================

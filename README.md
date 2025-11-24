@@ -15,7 +15,7 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phases 0-13 Complete ✓
+**Current Phase:** Phases 0-15 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
@@ -31,7 +31,9 @@ This project implements an intelligent pipeline for:
 - ✅ Phase 11: Deep analysis pass (optional) (COMPLETE - see PHASE11_COMPLETION.md)
 - ✅ Phase 12: Final CSV/Parquet export (COMPLETE - see PHASE12_COMPLETION.md)
 - ✅ Phase 13: LangGraph workflow integration (COMPLETE - see PHASE13_COMPLETION.md)
-- 🔄 Phases 14-22: Quality control, RAG interface, utilities, testing (planned)
+- ✅ Phase 14: Quality control and validation (COMPLETE - see PHASE14_COMPLETION.md)
+- ✅ Phase 15: RAG query interface (COMPLETE - see PHASE15_COMPLETION.md)
+- 🔄 Phases 16-22: Additional utilities, testing, optimization (planned)
 
 ## Quick Start
 
@@ -146,6 +148,21 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
   - run_full_pipeline: Complete end-to-end execution
   - run_ingestion_only/run_summarization_only: Selective execution
   - Visualization, monitoring, and progress tracking
+- `quality_control.py` - Quality control and validation framework (Phase 14)
+  - QCDashboard: Overall statistics and metrics
+  - DataQualityChecker: Comprehensive data quality validation
+  - ErrorAnalyzer: Error categorization and remediation
+  - ConsistencyValidator: Taxonomy and data consistency checks
+  - QCReportGenerator: Comprehensive QC reports (Markdown/HTML)
+  - 30+ validation and analysis functions
+- `rag_query_interface.py` - RAG query interface for corpus exploration (Phase 15)
+  - RAGQueryEngine: Main query engine with FAISS retrieval
+  - Query functions: rag_query, generate_query_embedding, retrieve_top_k_chunks
+  - Reranking: rerank_chunks, calculate_relevance_score, boost_section_scores
+  - Answer generation: generate_answer (via Responses API), create_context_from_chunks
+  - Interactive interface: interactive_query, display_query_results
+  - Query history: QueryHistory class, track_query, export_query_history
+  - Search utilities: search_by_title_substring, search_by_author, list_papers_in_topic
 
 ### Utilities
 - `notebook_builder.py` - Generate complete standalone notebooks

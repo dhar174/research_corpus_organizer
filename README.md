@@ -15,7 +15,7 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phase 17 Complete ✓
+**Current Phase:** Phase 19 Complete ✓
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
@@ -35,7 +35,9 @@ This project implements an intelligent pipeline for:
 - ✅ Phase 15: RAG query interface (COMPLETE - see PHASE15_COMPLETION.md)
 - ✅ Phase 16: Utility functions and tools (COMPLETE - see PHASE16_COMPLETION.md)
 - ✅ Phase 17: Cost tracking and optimization (COMPLETE - see PHASE17_COMPLETION.md)
-- 🔄 Phases 18-22: Error handling, testing, documentation, finalization (planned)
+- ✅ Phase 18: Error handling and resilience (COMPLETE - see PHASE18_COMPLETION.md)
+- ✅ Phase 19: Documentation and user guide (COMPLETE)
+- 🔄 Phases 20-22: Testing, deployment, advanced features (planned)
 
 ## Cost Tracking and Budget Controls (Phase 17)
 
@@ -102,7 +104,9 @@ See [FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md) for the compl
 
 ## Documentation
 
-- **[README_SETUP.md](README_SETUP.md)** - Setup guide and usage instructions
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Comprehensive user guide with step-by-step instructions
+- **[EXAMPLES.md](EXAMPLES.md)** - Configuration examples, query examples, and use cases
+- **[README_SETUP.md](README_SETUP.md)** - Setup guide and installation instructions
 - **[FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md)** - Complete implementation plan (Phases 0-22)
 - **[rag_pdf_system_spec_v_2.md](rag_pdf_system_spec_v_2.md)** - Technical specification v2.1
 

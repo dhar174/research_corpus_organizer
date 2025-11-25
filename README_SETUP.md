@@ -1,32 +1,51 @@
 # RAG PDF Research Corpus System - Setup Guide
 
-**Version:** 1.1  
-**Date:** 2025-11-22  
-**Status:** Phases 0, 1, and 2 Complete
+**Version:** 1.2  
+**Date:** 2025-11-25  
+**Status:** Phases 0-19 Complete
+
+> **Note:** For comprehensive usage instructions, see the [User Guide](USER_GUIDE.md).  
+> For examples, see [EXAMPLES.md](EXAMPLES.md).
 
 ## Overview
 
 This project implements a comprehensive system for processing and organizing academic PDF research papers using:
 - **LangGraph** workflows for orchestration
-- **GPT-5.1 Thinking** for summarization and classification
+- **GPT-5/GPT-5-mini** for summarization and classification
 - **FAISS** for vector indexing and RAG queries
 - **3-tier hierarchical topic taxonomy** for organization
+
+## Quick Links
+
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Complete user documentation
+- **[EXAMPLES.md](EXAMPLES.md)** - Configuration and usage examples
+- **[FINAL_NOTEBOOK_ACTION_PLAN.md](FINAL_NOTEBOOK_ACTION_PLAN.md)** - Implementation roadmap
 
 ## Project Structure
 
 ```
 research_corpus_organizer/
 ├── rag_pdf_system.ipynb          # Main Google Colab notebook
+├── USER_GUIDE.md                  # Comprehensive user guide
+├── EXAMPLES.md                    # Usage examples
 ├── rag_models.py                  # Data models and schemas (Phase 1)
 ├── drive_utils.py                 # Google Drive integration (Phase 2)
-├── test_phase2.py                 # Phase 2 test suite
-├── validate_models.py             # Phase 1 validation script
-├── notebook_builder.py            # Script to generate complete notebook
+├── pdf_parser.py                  # PDF parsing (Phase 3)
+├── metadata_extractor.py          # Metadata extraction (Phase 4)
+├── embedding_generator.py         # Embeddings & FAISS (Phase 5)
+├── summarization_pass1.py         # Summarization (Phase 6)
+├── export_manager.py              # Data export (Phases 7, 12)
+├── topic_taxonomy.py              # Taxonomy construction (Phase 8)
+├── taxonomy_review.py             # Taxonomy review (Phase 9)
+├── paper_classification.py        # Classification (Phase 10)
+├── deep_analysis_pass2.py         # Deep analysis (Phase 11)
+├── workflow_orchestrator.py       # LangGraph workflow (Phase 13)
+├── quality_control.py             # QC dashboard (Phase 14)
+├── rag_query_interface.py         # RAG queries (Phase 15)
+├── corpus_utilities.py            # Utilities (Phase 16)
 ├── FINAL_NOTEBOOK_ACTION_PLAN.md  # Complete implementation plan
 ├── rag_pdf_system_spec_v_2.md     # Technical specification
-├── PHASE1_COMPLETION.md           # Phase 1 completion report
-├── PHASE2_COMPLETION.md           # Phase 2 completion report
-└── README_SETUP.md                # This file
+└── PHASE*_COMPLETION.md           # Phase completion reports
 ```
 
 ## Completed Implementation

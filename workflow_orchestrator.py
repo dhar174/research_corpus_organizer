@@ -169,6 +169,10 @@ class SupervisorCoordinator:
         """
         Decide which stage to execute next based on current state.
         
+        The decision tree follows the pipeline order defined in FINAL_NOTEBOOK_ACTION_PLAN.md:
+        discovery -> parse -> metadata -> embed -> summarize -> taxonomy -> 
+        taxonomy_review -> classify -> export -> end
+        
         Args:
             state: Current GraphState
             
@@ -181,11 +185,12 @@ class SupervisorCoordinator:
         
         self.logger.info(f"Current phase: {current_phase}, Total papers: {len(papers)}")
         
-        # If no papers discovered yet, start with discovery
+        # Phase 0: If no papers discovered yet, start with discovery
+        # This handles both fresh starts and resumption from checkpoints
         if not papers:
             return "discover"
         
-        # Count papers by status
+        # Count papers by status to determine completion
         status_counts = defaultdict(int)
         for paper in papers.values():
             status_counts[paper.processing_status] += 1
@@ -193,52 +198,58 @@ class SupervisorCoordinator:
         self.logger.info(f"Paper status counts: {dict(status_counts)}")
         
         # Decision tree based on current phase and paper statuses
+        # Each phase transitions to the next when its work is complete
+        
         if current_phase == "initialization" or current_phase == "discovery":
-            # Start parsing papers
+            # Phase 1-2: After discovery, start parsing (Phases 3-4 in plan)
             return "parse"
         
         elif current_phase == "parsing":
-            # Check if all papers are parsed
+            # Phase 3: Check if all papers are parsed before moving to metadata
+            # Papers must be "parsed" status before metadata extraction
             pending_parse = sum(1 for p in papers.values() 
                               if p.processing_status == "pending")
             if pending_parse > 0:
-                return "parse"
+                return "parse"  # Continue parsing remaining papers
             else:
-                return "metadata"
+                return "metadata"  # All parsed, move to metadata extraction
         
         elif current_phase == "metadata":
-            # Move to embedding generation
+            # Phase 4: After metadata, generate embeddings (Phase 5 in plan)
             return "embed"
         
         elif current_phase == "embedding":
-            # Move to summarization
+            # Phase 5: After embeddings, summarize papers (Phase 6 in plan)
             return "summarize"
         
         elif current_phase == "summarization":
-            # Check if we need to build taxonomy
+            # Phase 6-9: After summarization, build or review taxonomy
+            # Taxonomy must exist and be approved before classification
             if state.get("topic_hierarchy") is None:
-                return "taxonomy"
+                return "taxonomy"  # Phase 8: Build taxonomy
             elif not state.get("taxonomy_approved", False):
-                return "taxonomy_review"
+                return "taxonomy_review"  # Phase 9: Wait for approval
             else:
-                return "classify"
+                return "classify"  # Phase 10: Taxonomy approved, classify papers
         
         elif current_phase == "taxonomy_review":
-            # Wait for user approval, then classify
+            # Phase 9: Human-in-the-loop step
+            # Wait for user approval, then proceed to classification
             if state.get("taxonomy_approved", False):
                 return "classify"
             else:
-                return "taxonomy_review"  # Stay in review
+                return "taxonomy_review"  # Stay in review until approved
         
         elif current_phase == "classification":
-            # Move to final export
+            # Phase 10: After classification, export final results (Phase 12)
             return "export"
         
         elif current_phase == "export":
-            # Pipeline complete
+            # Phase 12: Pipeline complete
             return "end"
         
         else:
+            # Unknown phase - gracefully terminate
             self.logger.warning(f"Unknown phase: {current_phase}, ending workflow")
             return "end"
     

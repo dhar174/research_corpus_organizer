@@ -649,18 +649,18 @@ for topic in state['topic_hierarchy'].tier1:
 Generate bibliography entries:
 
 ```python
-from corpus_utilities import generate_bibtex_entries
+from corpus_utilities import generate_bibtex_entries, search_by_topic
 
 # Generate BibTeX for all papers
 bibtex = generate_bibtex_entries(state)
 with open("bibliography.bib", "w") as f:
     f.write(bibtex)
 
-# Generate for specific topic
-bibtex = generate_bibtex_entries(
-    state,
-    filter_topic="T1_LLMs"
-)
+# Generate BibTeX for a specific topic
+papers = search_by_topic(state, "T1_LLMs")
+bibtex = generate_bibtex_entries(state, paper_ids=[p.id for p in papers])
+with open("bibliography_T1_LLMs.bib", "w") as f:
+    f.write(bibtex)
 ```
 
 ---

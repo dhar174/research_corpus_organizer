@@ -276,8 +276,8 @@ class TopicMapGenerator:
         Returns:
             Path to saved figure or None
         """
-        if not MATPLOTLIB_AVAILABLE:
-            logger.warning("Matplotlib not available for static map")
+        if not MATPLOTLIB_AVAILABLE or not NUMPY_AVAILABLE:
+            logger.warning("Matplotlib or NumPy not available for static map")
             return None
         
         fig, ax = plt.subplots(figsize=(16, 10))
@@ -289,6 +289,12 @@ class TopicMapGenerator:
         # Sort by count
         sorted_data = sorted(zip(tier1_counts, tier1_labels), reverse=True)
         tier1_counts, tier1_labels = zip(*sorted_data) if sorted_data else ([], [])
+        
+        # Check for empty topic list
+        if not tier1_labels:
+            logger.warning("No tier1 topics to visualize")
+            plt.close()
+            return None
         
         y_pos = range(len(tier1_labels))
         colors = plt.cm.viridis(np.linspace(0, 0.8, len(tier1_labels)))
@@ -1062,8 +1068,8 @@ class AuthorNetworkAnalyzer:
         Returns:
             Plotly figure or None
         """
-        if not PLOTLY_AVAILABLE or self.graph is None:
-            logger.warning("Plotly or NetworkX not available for network visualization")
+        if not PLOTLY_AVAILABLE or not NUMPY_AVAILABLE or self.graph is None:
+            logger.warning("Plotly, NumPy, or NetworkX not available for network visualization")
             return None
         
         # Filter graph
@@ -1162,7 +1168,7 @@ class AuthorNetworkAnalyzer:
         Returns:
             Path to saved figure or None
         """
-        if not MATPLOTLIB_AVAILABLE or not NETWORKX_AVAILABLE or self.graph is None:
+        if not MATPLOTLIB_AVAILABLE or not NETWORKX_AVAILABLE or not NUMPY_AVAILABLE or self.graph is None:
             logger.warning("Dependencies not available for static network plot")
             return None
         

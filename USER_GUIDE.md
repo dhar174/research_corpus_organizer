@@ -588,9 +588,9 @@ state = run_full_pipeline(config)
 from corpus_utilities import create_reading_list
 reading_list = create_reading_list(
     state,
-    sort_by="relevance",
-    include_summaries=True,
-    output_path="literature_review.md"
+    paper_ids=list(state['papers'].keys()),
+    output_path="literature_review.md",
+    title="Literature Review Reading List"
 )
 ```
 

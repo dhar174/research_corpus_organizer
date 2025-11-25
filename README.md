@@ -1,5 +1,9 @@
 # RAG PDF Research Corpus Organizer
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/dhar174/research_corpus_organizer)
+[![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A comprehensive system for processing and organizing academic PDF research papers using LangGraph workflows, GPT-5.1 Thinking, and RAG (Retrieval-Augmented Generation).
 
 ## Overview
@@ -15,7 +19,8 @@ This project implements an intelligent pipeline for:
 
 ## Project Status
 
-**Current Phase:** Phase 19 Complete ✓
+**Current Phase:** Phase 21 Complete ✓  
+**Version:** 1.0.0
 
 - ✅ Phase 0: Environment setup and configuration
 - ✅ Phase 1: Data models and schema definitions (COMPLETE - see PHASE1_COMPLETION.md)
@@ -38,7 +43,7 @@ This project implements an intelligent pipeline for:
 - ✅ Phase 18: Error handling and resilience (COMPLETE - see PHASE18_COMPLETION.md)
 - ✅ Phase 19: Documentation and user guide (COMPLETE)
 - ✅ Phase 20: Testing and validation (COMPLETE - see PHASE20_COMPLETION.md)
-- 🔄 Phase 21: Deployment (planned)
+- ✅ Phase 21: Deployment and finalization (COMPLETE - see PHASE21_COMPLETION.md)
 - ✅ Phase 22b: Advanced visualizations (COMPLETE - see PHASE22B_COMPLETION.md)
 
 ## Cost Tracking and Budget Controls (Phase 17)
@@ -416,6 +421,9 @@ This project follows a phased implementation approach. See FINAL_NOTEBOOK_ACTION
 To validate the implementation:
 
 ```bash
+# Run comprehensive Phase 20 test suite
+python test_phase20.py
+
 # Test Phase 1 models
 python validate_models.py
 
@@ -447,8 +455,141 @@ python test_phase16.py
 python examples_phase16.py
 ```
 
+## Installation
+
+### From Source (Development)
+
+```bash
+# Clone the repository
+git clone https://github.com/dhar174/research_corpus_organizer.git
+cd research_corpus_organizer
+
+# Install in development mode
+pip install -e .
+
+# Or with all optional dependencies
+pip install -e ".[full]"
+```
+
+### Dependencies
+
+Core dependencies:
+- openai>=1.3.0
+- langgraph>=0.0.30
+- pymupdf>=1.23.0
+- faiss-cpu>=1.7.4
+- scikit-learn>=1.3.0
+- pydantic>=2.0.0
+- pandas>=2.0.0
+- numpy>=1.24.0
+
+Optional dependencies:
+- pytesseract (OCR support)
+- hdbscan (advanced clustering)
+- matplotlib, seaborn (visualization)
+
+## Troubleshooting
+
+### Common Issues
+
+#### "OPENAI_API_KEY not set"
+```python
+import os
+os.environ["OPENAI_API_KEY"] = "your-api-key-here"
+```
+
+#### "Rate limit exceeded" (Error 429)
+The system has built-in retry logic with exponential backoff. You can also:
+- Reduce `max_papers_per_run` to process fewer papers
+- Enable `batch_api_calls=True` for batch processing
+- Increase delays between API calls
+
+#### "Budget exceeded"
+```python
+config = create_default_config(
+    max_cost_per_run=20.0,  # Increase budget
+)
+```
+
+#### "PDF parsing failed"
+- Enable OCR: `enable_ocr_fallback=True`
+- Check file integrity
+- Ensure PDF is not encrypted/password-protected
+
+#### Import errors
+```python
+import sys
+sys.path.append('/path/to/research_corpus_organizer')
+```
+
+### Getting Help
+
+1. Check the [USER_GUIDE.md](USER_GUIDE.md) for detailed instructions
+2. Review [EXAMPLES.md](EXAMPLES.md) for configuration examples
+3. Run the test suite to verify your setup: `python test_phase20.py`
+4. Open an issue on GitHub for bugs or feature requests
+
+## FAQ
+
+### Q: How much does it cost to process papers?
+
+Approximate costs using gpt-5-mini with batch API:
+- **Embeddings**: ~$0.0001 per chunk
+- **Summarization**: ~$0.005 per paper
+- **Classification**: ~$0.002 per paper
+
+For 100 papers (~50 chunks each): **~$1.20 total**
+
+### Q: How long does processing take?
+
+Depends on corpus size and API speed:
+- 10 papers: ~5-10 minutes
+- 100 papers: ~30-60 minutes
+- 500 papers: ~2-4 hours
+
+### Q: Can I process non-English papers?
+
+The system primarily supports English. Non-English papers may parse correctly but may have reduced metadata extraction and classification quality.
+
+### Q: How do I update an existing corpus?
+
+```python
+from corpus_utilities import add_new_papers
+from workflow_orchestrator import load_checkpoint
+
+# Load existing state
+state = load_checkpoint("previous_run")
+
+# Add and process new papers
+state = add_new_papers(state, new_papers)
+```
+
+### Q: Can I customize the taxonomy?
+
+Yes! After taxonomy generation:
+```python
+state['taxonomy_approved'] = False  # Require re-review
+# Modify topics as needed
+state['taxonomy_approved'] = True
+```
+
 ---
 
-**Version:** 1.4  
-**Last Updated:** 2025-11-24  
-**Status:** Phases 0-16 Complete - Ready for Advanced Features Development
+## License
+
+See repository license.
+
+## Contributing
+
+This project follows a phased implementation approach. See FINAL_NOTEBOOK_ACTION_PLAN.md for details on each phase.
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+---
+
+**Version:** 1.0.0  
+**Last Updated:** 2025-11-25  
+**Status:** Phase 21 Complete - Production Ready

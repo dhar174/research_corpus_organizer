@@ -14,7 +14,7 @@ Date: 2025-11-21
 """
 
 from datetime import datetime, date
-from typing import Optional, Dict, List, Literal, Any, TypedDict
+from typing import Optional, Dict, List, Literal, Any, TypedDict, Callable
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import hashlib
 import logging
@@ -1913,10 +1913,31 @@ class CostTracker:
     This class is the main interface for Phase 17 cost tracking and optimization.
     It monitors all API calls, calculates costs, enforces budget limits, and
     provides recommendations for cost savings.
+    
+    Key Features:
+        - Real-time cost tracking for all OpenAI API calls
+        - Budget enforcement with configurable limits and warnings
+        - Support for batch API 50% discount calculation
+        - Result caching to avoid duplicate API calls
+        - Cost breakdown by operation type
+        - Automated cost-saving recommendations
+    
+    Usage:
+        >>> from rag_models import RunConfig, CostTracker
+        >>> config = RunConfig(max_cost_per_run=10.0)
+        >>> tracker = CostTracker(config)
+        >>> tracker.record_api_call("summarization", "gpt-5-mini", 1000, 500)
+        >>> tracker.print_summary()
+    
+    See Also:
+        - FINAL_NOTEBOOK_ACTION_PLAN.md Phase 17 for implementation details
+        - README_PHASE17.md for complete documentation
     """
     
     # OpenAI API pricing (as of 2025-11, subject to change)
     # Source: https://openai.com/api/pricing/
+    # NOTE: Update these values when pricing changes
+    # CUSTOMIZATION POINT: Add new models here as they become available
     PRICING = {
         # GPT-5 models (Responses API)
         "gpt-5-mini": {
@@ -1927,7 +1948,7 @@ class CostTracker:
             "input": 3.00 / 1_000_000,   # $3.00 per 1M input tokens
             "output": 15.00 / 1_000_000, # $15.00 per 1M output tokens
         },
-        # O-series models
+        # O-series models (reasoning models)
         "o4-mini": {
             "input": 0.15 / 1_000_000,   # $0.15 per 1M input tokens
             "output": 0.60 / 1_000_000,  # $0.60 per 1M output tokens
@@ -1936,7 +1957,7 @@ class CostTracker:
             "input": 5.00 / 1_000_000,   # $5.00 per 1M input tokens
             "output": 20.00 / 1_000_000, # $20.00 per 1M output tokens
         },
-        # Embedding models
+        # Embedding models (input only, no output tokens)
         "text-embedding-3-small": {
             "input": 0.02 / 1_000_000,   # $0.02 per 1M tokens
             "output": 0.0,
@@ -1945,7 +1966,7 @@ class CostTracker:
             "input": 0.13 / 1_000_000,   # $0.13 per 1M tokens
             "output": 0.0,
         },
-        # Batch API discount (50% off)
+        # Batch API discount (applies to offline/batch jobs)
         "batch_discount": 0.5,
     }
     
@@ -1959,32 +1980,33 @@ class CostTracker:
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.CostTracker")
         
-        # Call records
+        # Call records - stores all API call history for reporting
         self.api_calls: List[APICallRecord] = []
         
-        # Cost accumulators
+        # Cost accumulators - track spending by operation type
         self.total_cost = 0.0
         self.cost_by_operation: Dict[str, float] = {
-            "embedding": 0.0,
-            "summarization": 0.0,
-            "taxonomy": 0.0,
-            "classification": 0.0,
-            "other": 0.0,
+            "embedding": 0.0,       # text-embedding-* calls
+            "summarization": 0.0,   # Summary generation calls
+            "taxonomy": 0.0,        # Topic labeling calls
+            "classification": 0.0,  # Paper classification calls
+            "other": 0.0,           # Uncategorized calls
         }
         
-        # Token accumulators
+        # Token accumulators - track total token usage
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         
-        # Cache for deduplication
+        # Cache for deduplication - avoids duplicate API calls
+        # Key: hash of operation+params, Value: cached result
         self.result_cache: Dict[str, Any] = {}
         
-        # Budget tracking
+        # Budget tracking from config
         self.budget_limit = config.max_cost_per_run
         self.warning_threshold = config.cost_warning_threshold
-        self.warnings_issued: List[str] = []
+        self.warnings_issued: List[str] = []  # Track which warnings already shown
         
-        # Start time
+        # Start time for duration tracking
         self.start_time = datetime.now()
         
         self.logger.info(f"CostTracker initialized. Budget: ${self.budget_limit if self.budget_limit else 'unlimited'}")

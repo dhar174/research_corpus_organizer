@@ -87,13 +87,17 @@ Created **[EXAMPLES.md](EXAMPLES.md)** with:
 
 ### Step 19.4: Inline Comments ✓
 
-Key modules have inline comments for:
+Key modules have enhanced inline comments for:
 
-- **Complex logic** - Workflow routing, clustering algorithms
+- **Complex logic** - Workflow routing decision tree, clustering algorithms
 - **Important assumptions** - Default values, expected formats
-- **Customization points** - Configuration options, feature flags
-- **TODO items** - Future enhancements marked
+- **Customization points** - Configuration options, feature flags marked with `# CUSTOMIZATION POINT`
 - **Specification references** - Links to FINAL_NOTEBOOK_ACTION_PLAN.md sections
+- **API pricing notes** - Comments indicating pricing sources and update needs
+
+Specific enhancements made:
+- `workflow_orchestrator.py` - Added phase references in `decide_next_stage()` decision tree
+- `rag_models.py` - Enhanced CostTracker with usage examples and detailed comments
 
 ## Documentation Files Created
 
@@ -107,7 +111,10 @@ Key modules have inline comments for:
 
 | File | Changes |
 |------|---------|
-| README.md | Added Phase 19 to completion list, added documentation links |
+| README.md | Added Phase 18/19 to completion list, added documentation links |
+| README_SETUP.md | Updated version, added quick links to new documentation |
+| rag_models.py | Enhanced CostTracker docstring with usage examples, added Callable import |
+| workflow_orchestrator.py | Added inline comments to decision tree with phase references |
 
 ## Documentation Structure
 

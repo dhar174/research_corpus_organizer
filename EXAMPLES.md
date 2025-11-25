@@ -652,10 +652,9 @@ from corpus_utilities import create_reading_list
 
 reading_list = create_reading_list(
     state,
-    sort_by="year",
-    group_by_topic=True,
-    include_summaries=True,
-    output_path="reading_list.md"
+    paper_ids=list(state['papers'].keys()),
+    output_path="reading_list.md",
+    title="Literature Review Reading List"
 )
 
 # Step 3: Query for specific themes

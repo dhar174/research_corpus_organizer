@@ -1,0 +1,33 @@
+# Include documentation files
+include LICENSE
+include README.md
+include CHANGELOG.md
+include USER_GUIDE.md
+include EXAMPLES.md
+include pyproject.toml
+
+# Include spec files
+include rag_pdf_system_spec_v_2.md
+
+# Exclude development and testing files
+exclude .gitignore
+exclude test_*.py
+exclude validate_*.py
+exclude examples_*.py
+exclude notebook_builder.py
+
+# Exclude phase documentation (development artifacts)
+prune PHASE*
+
+# Exclude notebooks (users can get from repo)
+exclude *.ipynb
+
+# Exclude GitHub configuration
+prune .github
+
+# Exclude development directories
+prune __pycache__
+prune *.egg-info
+prune build
+prune dist
+prune .pytest_cache

@@ -28,6 +28,9 @@ exclude README_SETUP.md
 # Exclude notebooks (users can get from repo)
 exclude *.ipynb
 
+# Exclude PDF files
+exclude *.pdf
+
 # Exclude GitHub configuration
 prune .github
 

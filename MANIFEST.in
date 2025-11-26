@@ -4,6 +4,7 @@ include README.md
 include CHANGELOG.md
 include USER_GUIDE.md
 include EXAMPLES.md
+include GITHUB_ACTIONS_SETUP.md
 include pyproject.toml
 
 # Include spec files
@@ -17,7 +18,12 @@ exclude examples_*.py
 exclude notebook_builder.py
 
 # Exclude phase documentation (development artifacts)
-prune PHASE*
+exclude PHASE*.md
+exclude README_PHASE*.md
+exclude CODE_REVIEW_FIXES.md
+exclude FINAL_NOTEBOOK_ACTION_PLAN.md
+exclude MODELS_QUICK_REFERENCE.md
+exclude README_SETUP.md
 
 # Exclude notebooks (users can get from repo)
 exclude *.ipynb

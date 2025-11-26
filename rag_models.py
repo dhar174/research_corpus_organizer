@@ -9,8 +9,8 @@ This module defines all core data structures for the RAG PDF pipeline:
 - GraphState: LangGraph workflow state
 - Helper classes for metadata, statistics, and error handling
 
-Version: 1.0
-Date: 2025-11-21
+Version: 1.0.0
+Date: 2025-11-25
 """
 
 from datetime import datetime, date
@@ -22,8 +22,14 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Package version
+__version__ = "1.0.0"
+
 # Export list for clean imports
 __all__ = [
+    # Version
+    '__version__',
+    
     # Configuration
     'RunConfig',
     'create_default_config',

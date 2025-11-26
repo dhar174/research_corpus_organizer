@@ -533,12 +533,18 @@ sys.path.append('/path/to/research_corpus_organizer')
 
 ### Q: How much does it cost to process papers?
 
-Approximate costs using gpt-5-mini with batch API:
+Approximate costs using gpt-5-mini with batch API (actual costs may vary by provider and usage):
 - **Embeddings**: ~$0.0001 per chunk
 - **Summarization**: ~$0.005 per paper
 - **Classification**: ~$0.002 per paper
 
-For 100 papers (~50 chunks each): **~$1.20 total**
+For 100 papers (~50 chunks each):  
+- Embeddings: 100 papers × 50 chunks × $0.0001 = **$0.50**  
+- Summarization: 100 papers × $0.005 = **$0.50**  
+- Classification: 100 papers × $0.002 = **$0.20**  
+**Total: ~$1.20**  
+
+_All costs are rough estimates. Actual charges may differ based on API pricing, chunk size, and paper length._
 
 ### Q: How long does processing take?
 

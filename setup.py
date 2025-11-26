@@ -90,7 +90,7 @@ setup(
     name="rag-pdf-research-corpus",
     version="1.0.0",
     author="Research Corpus Organizer",
-    author_email="",
+    author_email="noreply@example.com",
     description="A comprehensive system for processing and organizing academic PDF research papers using LangGraph, GPT-5, and RAG",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -131,7 +131,7 @@ setup(
     
     # Package classifiers for PyPI
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",

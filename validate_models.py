@@ -315,6 +315,69 @@ def test_helper_classes():
     print("✓ Helper classes tests passed")
 
 
+def test_openai_config():
+    """Test OpenAI configuration fields in RunConfig."""
+    print("Testing OpenAI configuration...")
+    
+    # Test default values
+    config = RunConfig()
+    assert config.openai_api_key_env_var == "OPENAI_API_KEY"
+    assert config.default_text_model == "gpt-5-mini"
+    assert config.default_embedding_model == "text-embedding-3-small"
+    assert config.api_timeout_seconds == 120
+    assert config.api_max_batch_size == 100
+    print("  ✓ Default OpenAI config values correct")
+    
+    # Test custom values
+    config = create_default_config(
+        openai_api_key_env_var="MY_OPENAI_KEY",
+        default_text_model="gpt-5",
+        default_embedding_model="text-embedding-3-large",
+        api_timeout_seconds=60,
+        api_max_batch_size=50
+    )
+    assert config.openai_api_key_env_var == "MY_OPENAI_KEY"
+    assert config.default_text_model == "gpt-5"
+    assert config.default_embedding_model == "text-embedding-3-large"
+    assert config.api_timeout_seconds == 60
+    assert config.api_max_batch_size == 50
+    print("  ✓ Custom OpenAI config values correct")
+    
+    # Test display includes OpenAI settings
+    display = config.display_config()
+    assert "OpenAI API" in display
+    assert "API key env var" in display
+    assert "Default text model" in display
+    print("  ✓ Display includes OpenAI settings")
+    
+    print("✓ OpenAI configuration tests passed")
+
+
+def test_openai_helpers_importable():
+    """Test that OpenAI helper functions are importable."""
+    print("Testing OpenAI helpers importable...")
+    
+    try:
+        from rag_models import (
+            get_openai_client,
+            call_gpt5_mini_text,
+            call_gpt5_mini_json,
+            embed_texts
+        )
+        print("  ✓ All OpenAI helpers imported successfully")
+    except ImportError as e:
+        raise AssertionError(f"Failed to import OpenAI helpers: {e}")
+    
+    # Test that they are callable
+    assert callable(get_openai_client)
+    assert callable(call_gpt5_mini_text)
+    assert callable(call_gpt5_mini_json)
+    assert callable(embed_texts)
+    print("  ✓ All OpenAI helpers are callable")
+    
+    print("✓ OpenAI helpers import tests passed")
+
+
 def main():
     """Run all tests."""
     print("=" * 60)
@@ -329,6 +392,8 @@ def main():
         test_topic_hierarchy()
         test_graph_state()
         test_helper_classes()
+        test_openai_config()
+        test_openai_helpers_importable()
         
         print()
         print("=" * 60)

@@ -66,6 +66,12 @@ __all__ = [
     'PDFValidationError',
     'DataValidator',
     
+    # OpenAI API Helpers
+    'get_openai_client',
+    'call_gpt5_mini_text',
+    'call_gpt5_mini_json',
+    'embed_texts',
+    
     # Utility Functions
     'validate_paper_record',
     'export_papers_to_csv',
@@ -89,6 +95,29 @@ class RunConfig(BaseModel):
     drive_folder_path: str = Field(
         default="PDFs",
         description="Google Drive folder path containing PDFs (relative to 'My Drive')"
+    )
+    
+    # OpenAI API configuration
+    # Note: OPENAI_API_KEY should be read from environment variable, never hard-coded
+    openai_api_key_env_var: str = Field(
+        default="OPENAI_API_KEY",
+        description="Environment variable name for OpenAI API key (never hard-code keys)"
+    )
+    default_text_model: str = Field(
+        default="gpt-5-mini",
+        description="Default text model for all completions (Responses API)"
+    )
+    default_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="Default embedding model"
+    )
+    api_timeout_seconds: int = Field(
+        default=120,
+        description="Timeout in seconds for API calls"
+    )
+    api_max_batch_size: int = Field(
+        default=100,
+        description="Maximum batch size for batch API operations"
     )
     
     # Processing limits
@@ -295,6 +324,13 @@ class RunConfig(BaseModel):
             f"Max pages per paper: {self.max_pages_per_paper or 'unlimited'}",
             f"Max chunks per paper: {self.max_chunks_per_paper}",
             "",
+            "OpenAI API:",
+            f"  API key env var: {self.openai_api_key_env_var}",
+            f"  Default text model: {self.default_text_model}",
+            f"  Default embedding model: {self.default_embedding_model}",
+            f"  API timeout: {self.api_timeout_seconds}s",
+            f"  Max batch size: {self.api_max_batch_size}",
+            "",
             "Models:",
             f"  Summary: {self.summary_model}",
             f"  Taxonomy: {self.taxonomy_model}",
@@ -310,6 +346,10 @@ class RunConfig(BaseModel):
             f"  Tier 1 target k: {self.cluster_tier1_target_k}",
             f"  Tier 2 target k: {self.cluster_tier2_target_k}",
             f"  Tier 3 target k: {self.cluster_tier3_target_k}",
+            "",
+            "Chunk Parameters:",
+            f"  Chunk size: {self.chunk_size_chars} chars",
+            f"  Chunk overlap: {self.chunk_overlap_chars} chars",
             "",
             "Features:",
             f"  OCR fallback: {self.enable_ocr_fallback}",
@@ -2388,3 +2428,263 @@ class CostTracker:
         ]
         
         return tracker
+
+
+# =============================================================================
+# OpenAI API Helpers (Responses API)
+# =============================================================================
+# IMPORTANT: These helpers use the Responses API, which is the ONLY allowed 
+# interface for new OpenAI code. Do NOT use Chat Completions API.
+# See: OpenAI API Usage Policy section in project documentation.
+
+def get_openai_client(config: Optional[RunConfig] = None) -> Any:
+    """
+    Get an initialized OpenAI client.
+    
+    The API key is read from the environment variable specified in config
+    (default: OPENAI_API_KEY). Never hard-code API keys.
+    
+    Args:
+        config: Optional RunConfig with API settings. If None, uses defaults.
+        
+    Returns:
+        Initialized OpenAI client
+        
+    Raises:
+        ValueError: If API key environment variable is not set
+        ImportError: If openai package is not installed
+        
+    Example:
+        >>> config = RunConfig()
+        >>> client = get_openai_client(config)
+        >>> # Use client.responses.create() for text generation
+        >>> # Use client.embeddings.create() for embeddings
+        
+    Note:
+        This uses the **Responses API**, not Chat Completions.
+        The default model is "gpt-5-mini" and must be configurable via RunConfig.
+    """
+    import os
+    
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError(
+            "OpenAI SDK not installed. Install with: pip install openai>=1.3.0"
+        )
+    
+    # Get config or use defaults
+    if config is None:
+        config = RunConfig()
+    
+    # Get API key from environment
+    api_key_env = config.openai_api_key_env_var
+    api_key = os.environ.get(api_key_env)
+    
+    if not api_key:
+        raise ValueError(
+            f"OpenAI API key not found in environment variable '{api_key_env}'. "
+            "Set the environment variable or update config.openai_api_key_env_var."
+        )
+    
+    # Initialize client
+    client = OpenAI(
+        api_key=api_key,
+        timeout=config.api_timeout_seconds
+    )
+    
+    return client
+
+
+def call_gpt5_mini_text(
+    prompt: str,
+    config: Optional[RunConfig] = None,
+    instructions: Optional[str] = None,
+    model: Optional[str] = None
+) -> str:
+    """
+    Call GPT-5-mini using the Responses API for text generation.
+    
+    This helper uses client.responses.create(), which is the ONLY allowed
+    interface for new OpenAI code. Do NOT use Chat Completions API.
+    
+    Args:
+        prompt: User prompt text
+        config: Optional RunConfig with model settings
+        instructions: Optional system instructions (global behavior)
+        model: Optional model override (default: config.default_text_model or "gpt-5-mini")
+        
+    Returns:
+        Generated text response
+        
+    Example:
+        >>> response = call_gpt5_mini_text(
+        ...     "Summarize this paper abstract: ...",
+        ...     instructions="You are a research paper summarizer."
+        ... )
+        >>> print(response)
+        
+    Note:
+        - Uses the Responses API (client.responses.create)
+        - Pass global behavior via `instructions`
+        - Pass user messages via `input: [{"role": "user", "content": prompt}]`
+    """
+    if config is None:
+        config = RunConfig()
+    
+    client = get_openai_client(config)
+    
+    # Use provided model or default
+    model_name = model or config.default_text_model
+    
+    # Build input messages
+    input_messages = [{"role": "user", "content": prompt}]
+    
+    # Call Responses API
+    # Note: Using responses.create() NOT chat.completions.create()
+    response = client.responses.create(
+        model=model_name,
+        input=input_messages,
+        instructions=instructions
+    )
+    
+    # Extract and return text from response
+    # Response structure: response.output[0].content[0].text
+    if response.output and len(response.output) > 0:
+        output_item = response.output[0]
+        if hasattr(output_item, 'content') and len(output_item.content) > 0:
+            return output_item.content[0].text
+    
+    return ""
+
+
+def call_gpt5_mini_json(
+    prompt: str,
+    schema: Dict[str, Any],
+    config: Optional[RunConfig] = None,
+    instructions: Optional[str] = None,
+    model: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Call GPT-5-mini using the Responses API with structured JSON output.
+    
+    This helper uses client.responses.create() with response_format for
+    structured output. This is the ONLY allowed interface for new OpenAI code.
+    
+    Args:
+        prompt: User prompt text
+        schema: JSON schema for structured output
+        config: Optional RunConfig with model settings  
+        instructions: Optional system instructions (global behavior)
+        model: Optional model override (default: config.default_text_model)
+        
+    Returns:
+        Parsed JSON response as dictionary
+        
+    Example:
+        >>> schema = {
+        ...     "type": "object",
+        ...     "properties": {
+        ...         "summary": {"type": "string"},
+        ...         "topics": {"type": "array", "items": {"type": "string"}}
+        ...     },
+        ...     "required": ["summary", "topics"]
+        ... }
+        >>> result = call_gpt5_mini_json(
+        ...     "Extract summary and topics from: ...",
+        ...     schema=schema,
+        ...     instructions="Extract structured information from academic papers."
+        ... )
+        >>> print(result["summary"])
+        
+    Note:
+        - Uses the Responses API with response_format parameter
+        - Schema should be a valid JSON Schema object
+    """
+    if config is None:
+        config = RunConfig()
+    
+    client = get_openai_client(config)
+    
+    # Use provided model or default
+    model_name = model or config.default_text_model
+    
+    # Build input messages
+    input_messages = [{"role": "user", "content": prompt}]
+    
+    # Define response format
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "structured_response",
+            "schema": schema,
+            "strict": True
+        }
+    }
+    
+    # Call Responses API with structured output
+    response = client.responses.create(
+        model=model_name,
+        input=input_messages,
+        instructions=instructions,
+        text={"format": response_format}
+    )
+    
+    # Extract and parse JSON from response
+    if response.output and len(response.output) > 0:
+        output_item = response.output[0]
+        if hasattr(output_item, 'content') and len(output_item.content) > 0:
+            text_content = output_item.content[0].text
+            return json.loads(text_content)
+    
+    return {}
+
+
+def embed_texts(
+    texts: List[str],
+    config: Optional[RunConfig] = None,
+    model: Optional[str] = None
+) -> List[List[float]]:
+    """
+    Generate embeddings for a list of texts using OpenAI Embeddings API.
+    
+    Args:
+        texts: List of text strings to embed
+        config: Optional RunConfig with model settings
+        model: Optional model override (default: config.default_embedding_model)
+        
+    Returns:
+        List of embedding vectors, aligned to input texts.
+        Each vector is a list of floats.
+        
+    Example:
+        >>> texts = ["Paper abstract 1...", "Paper abstract 2..."]
+        >>> embeddings = embed_texts(texts)
+        >>> print(len(embeddings))  # 2
+        >>> print(len(embeddings[0]))  # embedding dimension (e.g., 1536)
+        
+    Note:
+        - Uses client.embeddings.create()
+        - Default model is "text-embedding-3-small" (configurable)
+        - For batch operations, consider using batch API for 50% cost savings
+    """
+    if config is None:
+        config = RunConfig()
+    
+    client = get_openai_client(config)
+    
+    # Use provided model or default
+    model_name = model or config.default_embedding_model
+    
+    # Call embeddings API
+    response = client.embeddings.create(
+        model=model_name,
+        input=texts
+    )
+    
+    # Extract embedding vectors, ensuring they're aligned with input order
+    embeddings = [None] * len(texts)
+    for data in response.data:
+        embeddings[data.index] = data.embedding
+    
+    return embeddings

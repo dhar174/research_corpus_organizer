@@ -779,7 +779,7 @@ def test_stop_after_embedding_in_state():
     
     # Verify the flag exists and defaults to False
     assert "stop_after_embedding" in state, "stop_after_embedding should be in state"
-    assert state["stop_after_embedding"] == False, "stop_after_embedding should default to False"
+    assert state["stop_after_embedding"] is False, "stop_after_embedding should default to False"
     
     print("✓ stop_after_embedding flag properly initialized in state")
 

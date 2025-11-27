@@ -145,6 +145,46 @@ __all__ = [
 
 
 # =============================================================================
+# Cost Estimation Constants
+# =============================================================================
+# These constants are used to estimate token usage for cost tracking.
+# They can be adjusted based on actual usage patterns observed in the pipeline.
+
+CHARS_PER_TOKEN = 4  # Approximate characters per token (industry standard estimate)
+
+# Token estimates per paper for different operations
+SUMMARIZATION_INPUT_TOKENS_PER_PAPER = 1500   # ~6000 chars of context
+SUMMARIZATION_OUTPUT_TOKENS_PER_PAPER = 500   # ~2000 chars summary output
+
+CLASSIFICATION_INPUT_TOKENS_PER_PAPER = 500   # ~2000 chars summary + taxonomy
+CLASSIFICATION_OUTPUT_TOKENS_PER_PAPER = 200  # ~800 chars classification output
+
+# Token estimates per topic for taxonomy labeling
+TAXONOMY_INPUT_TOKENS_PER_TOPIC = 200   # ~800 chars of topic context
+TAXONOMY_OUTPUT_TOKENS_PER_TOPIC = 50   # ~200 chars label + description
+
+
+def _add_budget_error(state: GraphState, stage: str, error: Exception) -> GraphState:
+    """
+    Add a budget exceeded error to the state.
+    
+    Args:
+        state: Current GraphState
+        stage: Pipeline stage where error occurred
+        error: BudgetExceededError that was raised
+        
+    Returns:
+        Updated GraphState with error appended
+    """
+    state["errors"].append({
+        "stage": stage,
+        "error": f"Budget exceeded: {error}",
+        "timestamp": datetime.now().isoformat()
+    })
+    return state
+
+
+# =============================================================================
 # Step 13.2: Supervisor Node and Coordinator
 # =============================================================================
 
@@ -567,8 +607,7 @@ class WorkflowBuilder:
             config = state.get("config")
             for paper_id, chunks in state.get("chunks", {}).items():
                 for chunk in chunks:
-                    # Estimate tokens: ~4 characters per token
-                    total_tokens += len(chunk.text) // 4
+                    total_tokens += len(chunk.text) // CHARS_PER_TOKEN
             
             try:
                 if EMBEDDING_GENERATOR_AVAILABLE:
@@ -594,11 +633,7 @@ class WorkflowBuilder:
                             logger.info(f"Cost tracking updated for embedding: {total_tokens} tokens")
                         except BudgetExceededError as e:
                             logger.error(f"Budget exceeded during embedding: {e}")
-                            state["errors"].append({
-                                "stage": "embedding",
-                                "error": f"Budget exceeded: {e}",
-                                "timestamp": datetime.now().isoformat()
-                            })
+                            state = _add_budget_error(state, "embedding", e)
                 else:
                     logger.warning("Embedding generator not available")
                 
@@ -632,9 +667,9 @@ class WorkflowBuilder:
             ]
             num_papers = len(papers_to_summarize)
             
-            # Estimate tokens: ~1500 input + ~500 output per paper
-            estimated_input_tokens = num_papers * 1500
-            estimated_output_tokens = num_papers * 500
+            # Estimate tokens using constants
+            estimated_input_tokens = num_papers * SUMMARIZATION_INPUT_TOKENS_PER_PAPER
+            estimated_output_tokens = num_papers * SUMMARIZATION_OUTPUT_TOKENS_PER_PAPER
             
             try:
                 if SUMMARIZATION_AVAILABLE:
@@ -660,11 +695,7 @@ class WorkflowBuilder:
                             logger.info(f"Cost tracking updated for summarization: {num_papers} papers")
                         except BudgetExceededError as e:
                             logger.error(f"Budget exceeded during summarization: {e}")
-                            state["errors"].append({
-                                "stage": "summarization",
-                                "error": f"Budget exceeded: {e}",
-                                "timestamp": datetime.now().isoformat()
-                            })
+                            state = _add_budget_error(state, "summarization", e)
                 else:
                     logger.warning("Summarization not available")
                 
@@ -730,15 +761,14 @@ class WorkflowBuilder:
                         state["topic_hierarchy"] = hierarchy
                         
                         # Update cost tracking for taxonomy labeling API calls
-                        # Estimate: ~200 tokens per topic for labeling
                         if config and config.enable_cost_tracking and hierarchy:
                             num_topics = (
                                 len(hierarchy.tier1) +
                                 len(hierarchy.tier2) +
                                 len(hierarchy.tier3)
                             )
-                            estimated_input_tokens = num_topics * 200
-                            estimated_output_tokens = num_topics * 50
+                            estimated_input_tokens = num_topics * TAXONOMY_INPUT_TOKENS_PER_TOPIC
+                            estimated_output_tokens = num_topics * TAXONOMY_OUTPUT_TOKENS_PER_TOPIC
                             
                             try:
                                 state = update_cost_tracking(
@@ -752,11 +782,7 @@ class WorkflowBuilder:
                                 logger.info(f"Cost tracking updated for taxonomy: {num_topics} topics")
                             except BudgetExceededError as e:
                                 logger.error(f"Budget exceeded during taxonomy: {e}")
-                                state["errors"].append({
-                                    "stage": "taxonomy",
-                                    "error": f"Budget exceeded: {e}",
-                                    "timestamp": datetime.now().isoformat()
-                                })
+                                state = _add_budget_error(state, "taxonomy", e)
                         
                         # If approval not required, auto-approve
                         if not state["config"].taxonomy_approval_required:
@@ -833,9 +859,9 @@ class WorkflowBuilder:
             ]
             num_papers = len(papers_to_classify)
             
-            # Estimate tokens: ~500 input + ~200 output per paper
-            estimated_input_tokens = num_papers * 500
-            estimated_output_tokens = num_papers * 200
+            # Estimate tokens using constants
+            estimated_input_tokens = num_papers * CLASSIFICATION_INPUT_TOKENS_PER_PAPER
+            estimated_output_tokens = num_papers * CLASSIFICATION_OUTPUT_TOKENS_PER_PAPER
             
             try:
                 if CLASSIFICATION_AVAILABLE:
@@ -861,11 +887,7 @@ class WorkflowBuilder:
                             logger.info(f"Cost tracking updated for classification: {num_papers} papers")
                         except BudgetExceededError as e:
                             logger.error(f"Budget exceeded during classification: {e}")
-                            state["errors"].append({
-                                "stage": "classification",
-                                "error": f"Budget exceeded: {e}",
-                                "timestamp": datetime.now().isoformat()
-                            })
+                            state = _add_budget_error(state, "classification", e)
                 else:
                     logger.warning("Classification not available")
                 

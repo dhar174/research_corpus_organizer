@@ -286,6 +286,20 @@ class RunConfig(BaseModel):
             raise ValueError("cost_warning_threshold must be between 0.0 and 1.0")
         return v
     
+    @field_validator("api_timeout_seconds")
+    @classmethod
+    def validate_timeout(cls, v):
+        if v <= 0:
+            raise ValueError("api_timeout_seconds must be positive")
+        return v
+    
+    @field_validator("api_max_batch_size")
+    @classmethod
+    def validate_batch_size(cls, v):
+        if v <= 0:
+            raise ValueError("api_max_batch_size must be positive")
+        return v
+    
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert RunConfig to dictionary for serialization.
@@ -312,8 +326,18 @@ class RunConfig(BaseModel):
         """
         Get a formatted string representation of the configuration.
         
+        Displays all configuration sections including:
+        - Drive folder settings
+        - OpenAI API settings (env var, models, timeout, batch size)
+        - Model selections for summary/taxonomy/classification/embedding
+        - Reasoning effort levels
+        - Clustering parameters
+        - Chunk parameters
+        - Feature flags
+        - Budget & cost controls
+        
         Returns:
-            Formatted configuration string
+            Formatted configuration string with labeled sections
         """
         lines = [
             "=" * 60,
@@ -2686,5 +2710,9 @@ def embed_texts(
     embeddings = [None] * len(texts)
     for data in response.data:
         embeddings[data.index] = data.embedding
+    
+    # Validate that all embeddings were generated successfully
+    if None in embeddings:
+        raise ValueError("Failed to generate embeddings for all texts")
     
     return embeddings

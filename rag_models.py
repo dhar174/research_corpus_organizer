@@ -973,6 +973,9 @@ class GraphState(TypedDict, total=False):
     cost_tracker: Optional['CostTracker']
     total_cost: float
     cost_breakdown: Dict[str, float]
+    
+    # Execution mode flags
+    stop_after_embedding: bool  # When True, stops the pipeline after embedding phase
 
 
 # =============================================================================
@@ -1004,7 +1007,8 @@ class StateManager:
             stats={},
             cost_tracker=None,  # Will be initialized when needed
             total_cost=0.0,
-            cost_breakdown={}
+            cost_breakdown={},
+            stop_after_embedding=False  # When True, stops after embedding phase
         )
     
     @staticmethod

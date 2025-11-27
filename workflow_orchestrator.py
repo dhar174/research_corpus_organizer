@@ -112,6 +112,7 @@ __all__ = [
     'run_summarization_only',
     'run_classification_only',
     'rebuild_taxonomy',
+    'approve_taxonomy',
     'WorkflowExecutor',
     
     # Step 13.5: Visualization
@@ -219,7 +220,11 @@ class SupervisorCoordinator:
             return "embed"
         
         elif current_phase == "embedding":
-            # Phase 5: After embeddings, summarize papers (Phase 6 in plan)
+            # Phase 5: After embeddings, check if we should stop (ingestion-only mode)
+            if state.get("stop_after_embedding", False):
+                self.logger.info("Ingestion-only mode: stopping after embedding")
+                return "end"
+            # Otherwise, summarize papers (Phase 6 in plan)
             return "summarize"
         
         elif current_phase == "summarization":
@@ -557,6 +562,14 @@ class WorkflowBuilder:
             """Generate embeddings for all chunks."""
             logger.info("=== Embedding Node ===")
             
+            # Count tokens before processing for cost tracking
+            total_tokens = 0
+            config = state.get("config")
+            for paper_id, chunks in state.get("chunks", {}).items():
+                for chunk in chunks:
+                    # Estimate tokens: ~4 characters per token
+                    total_tokens += len(chunk.text) // 4
+            
             try:
                 if EMBEDDING_GENERATOR_AVAILABLE:
                     # embedding_generation_worker requires (state, api_key)
@@ -566,6 +579,26 @@ class WorkflowBuilder:
                         logger.error("OPENAI_API_KEY not set")
                         raise ValueError("OPENAI_API_KEY environment variable required")
                     state = embedding_generation_worker(state, api_key)
+                    
+                    # Update cost tracking with actual token usage
+                    if config and config.enable_cost_tracking and total_tokens > 0:
+                        try:
+                            state = update_cost_tracking(
+                                state=state,
+                                operation="embedding",
+                                model=config.embedding_model,
+                                input_tokens=total_tokens,
+                                output_tokens=0,  # Embeddings don't produce output tokens
+                                is_batch=config.batch_api_calls
+                            )
+                            logger.info(f"Cost tracking updated for embedding: {total_tokens} tokens")
+                        except BudgetExceededError as e:
+                            logger.error(f"Budget exceeded during embedding: {e}")
+                            state["errors"].append({
+                                "stage": "embedding",
+                                "error": f"Budget exceeded: {e}",
+                                "timestamp": datetime.now().isoformat()
+                            })
                 else:
                     logger.warning("Embedding generator not available")
                 
@@ -589,6 +622,20 @@ class WorkflowBuilder:
             """Summarize papers."""
             logger.info("=== Summarization Node ===")
             
+            config = state.get("config")
+            
+            # Count papers to summarize for cost estimation
+            papers_to_summarize = [
+                p for p in state.get("papers", {}).values()
+                if p.processing_status in ["pending", "parsed", "embedded"]
+                and not p.full_summary
+            ]
+            num_papers = len(papers_to_summarize)
+            
+            # Estimate tokens: ~1500 input + ~500 output per paper
+            estimated_input_tokens = num_papers * 1500
+            estimated_output_tokens = num_papers * 500
+            
             try:
                 if SUMMARIZATION_AVAILABLE:
                     # summarize_papers_worker requires (state, api_key)
@@ -598,6 +645,26 @@ class WorkflowBuilder:
                         logger.error("OPENAI_API_KEY not set")
                         raise ValueError("OPENAI_API_KEY environment variable required")
                     state = summarize_papers_worker(state, api_key)
+                    
+                    # Update cost tracking with token usage
+                    if config and config.enable_cost_tracking and num_papers > 0:
+                        try:
+                            state = update_cost_tracking(
+                                state=state,
+                                operation="summarization",
+                                model=config.summary_model,
+                                input_tokens=estimated_input_tokens,
+                                output_tokens=estimated_output_tokens,
+                                is_batch=config.batch_api_calls
+                            )
+                            logger.info(f"Cost tracking updated for summarization: {num_papers} papers")
+                        except BudgetExceededError as e:
+                            logger.error(f"Budget exceeded during summarization: {e}")
+                            state["errors"].append({
+                                "stage": "summarization",
+                                "error": f"Budget exceeded: {e}",
+                                "timestamp": datetime.now().isoformat()
+                            })
                 else:
                     logger.warning("Summarization not available")
                 
@@ -620,6 +687,8 @@ class WorkflowBuilder:
         def taxonomy_node(state: GraphState) -> GraphState:
             """Build topic taxonomy."""
             logger.info("=== Taxonomy Node ===")
+            
+            config = state.get("config")
             
             try:
                 if TAXONOMY_AVAILABLE:
@@ -660,6 +729,35 @@ class WorkflowBuilder:
                         )
                         state["topic_hierarchy"] = hierarchy
                         
+                        # Update cost tracking for taxonomy labeling API calls
+                        # Estimate: ~200 tokens per topic for labeling
+                        if config and config.enable_cost_tracking and hierarchy:
+                            num_topics = (
+                                len(hierarchy.tier1) +
+                                len(hierarchy.tier2) +
+                                len(hierarchy.tier3)
+                            )
+                            estimated_input_tokens = num_topics * 200
+                            estimated_output_tokens = num_topics * 50
+                            
+                            try:
+                                state = update_cost_tracking(
+                                    state=state,
+                                    operation="taxonomy",
+                                    model=config.taxonomy_model,
+                                    input_tokens=estimated_input_tokens,
+                                    output_tokens=estimated_output_tokens,
+                                    is_batch=config.batch_api_calls
+                                )
+                                logger.info(f"Cost tracking updated for taxonomy: {num_topics} topics")
+                            except BudgetExceededError as e:
+                                logger.error(f"Budget exceeded during taxonomy: {e}")
+                                state["errors"].append({
+                                    "stage": "taxonomy",
+                                    "error": f"Budget exceeded: {e}",
+                                    "timestamp": datetime.now().isoformat()
+                                })
+                        
                         # If approval not required, auto-approve
                         if not state["config"].taxonomy_approval_required:
                             state["taxonomy_approved"] = True
@@ -685,18 +783,33 @@ class WorkflowBuilder:
     def _create_taxonomy_review_node(self) -> Callable:
         """Create taxonomy review node."""
         def taxonomy_review_node(state: GraphState) -> GraphState:
-            """Review and approve taxonomy."""
+            """Review and approve taxonomy.
+            
+            Respects the taxonomy_approval_required configuration setting.
+            When approval is required, the taxonomy must be explicitly approved
+            (e.g., via user input or a separate API) before classification can proceed.
+            When approval is not required, auto-approves for automated runs.
+            """
             logger.info("=== Taxonomy Review Node ===")
             
-            # This is a human-in-the-loop step
-            # In a notebook, this would pause for user review
-            # For now, we just check if already approved
+            config = state.get("config")
             
             if not state.get("taxonomy_approved", False):
-                logger.info("Taxonomy waiting for approval")
-                # In practice, this would display taxonomy and wait
-                # For automated runs, we auto-approve
-                state["taxonomy_approved"] = True
+                # Check if manual approval is required
+                if config and config.taxonomy_approval_required:
+                    # Manual approval required - do NOT auto-approve
+                    # The workflow will stay in taxonomy_review state until
+                    # approval is explicitly supplied via approve_taxonomy()
+                    logger.info(
+                        "Taxonomy waiting for manual approval "
+                        "(taxonomy_approval_required=True). "
+                        "Call approve_taxonomy(state) to proceed."
+                    )
+                    # Do not set taxonomy_approved = True here
+                else:
+                    # Manual approval not required - auto-approve for automated runs
+                    logger.info("Taxonomy auto-approved (taxonomy_approval_required=False)")
+                    state["taxonomy_approved"] = True
             
             state["current_phase"] = "taxonomy_review"
             
@@ -710,6 +823,20 @@ class WorkflowBuilder:
             """Classify papers into taxonomy."""
             logger.info("=== Classification Node ===")
             
+            config = state.get("config")
+            
+            # Count papers to classify for cost estimation
+            papers_to_classify = [
+                p for p in state.get("papers", {}).values()
+                if p.processing_status in ["summarized", "embedded"]
+                and not p.tier1_topic
+            ]
+            num_papers = len(papers_to_classify)
+            
+            # Estimate tokens: ~500 input + ~200 output per paper
+            estimated_input_tokens = num_papers * 500
+            estimated_output_tokens = num_papers * 200
+            
             try:
                 if CLASSIFICATION_AVAILABLE:
                     # classification_worker requires (state, api_key)
@@ -719,6 +846,26 @@ class WorkflowBuilder:
                         logger.error("OPENAI_API_KEY not set")
                         raise ValueError("OPENAI_API_KEY environment variable required")
                     state = classification_worker(state, api_key)
+                    
+                    # Update cost tracking with token usage
+                    if config and config.enable_cost_tracking and num_papers > 0:
+                        try:
+                            state = update_cost_tracking(
+                                state=state,
+                                operation="classification",
+                                model=config.classification_model,
+                                input_tokens=estimated_input_tokens,
+                                output_tokens=estimated_output_tokens,
+                                is_batch=config.batch_api_calls
+                            )
+                            logger.info(f"Cost tracking updated for classification: {num_papers} papers")
+                        except BudgetExceededError as e:
+                            logger.error(f"Budget exceeded during classification: {e}")
+                            state["errors"].append({
+                                "stage": "classification",
+                                "error": f"Budget exceeded: {e}",
+                                "timestamp": datetime.now().isoformat()
+                            })
                 else:
                     logger.warning("Classification not available")
                 
@@ -1015,26 +1162,29 @@ class WorkflowExecutor:
         """
         Run only the ingestion phase (discovery, parsing, metadata, embeddings).
         
+        This method sets the stop_after_embedding flag to ensure the workflow
+        halts after embedding generation and does not proceed to downstream
+        stages like summarization, taxonomy, and classification.
+        
         Args:
             initial_state: Optional initial state
             
         Returns:
-            GraphState after ingestion
+            GraphState after ingestion (stops after embedding phase)
         """
         self.logger.info("=== Running Ingestion Only ===")
         
         if initial_state is None:
             initial_state = StateManager.create_initial_state(self.config)
         
-        # Modify config to stop after embedding
-        temp_config = self.config.model_copy()
-        # We'll run until embedding is complete
+        # Set flag to stop after embedding phase
+        initial_state["stop_after_embedding"] = True
         
         # Create and run graph
-        graph = create_workflow_graph(temp_config)
+        graph = create_workflow_graph(self.config)
         app = graph.compile()
         
-        # Run and stop after embedding
+        # Run workflow - will stop after embedding due to stop_after_embedding flag
         result = app.invoke(initial_state)
         
         self.logger.info("Ingestion completed")
@@ -1205,6 +1355,36 @@ def rebuild_taxonomy(state: GraphState) -> GraphState:
             logger.error("FAISS index not found. Run embedding generation first.")
     else:
         logger.warning("Taxonomy builder not available")
+    
+    return state
+
+
+def approve_taxonomy(state: GraphState) -> GraphState:
+    """
+    Explicitly approve the taxonomy for classification.
+    
+    This function is used when taxonomy_approval_required is True and
+    the user has reviewed the taxonomy and wants to proceed with classification.
+    
+    Args:
+        state: GraphState with taxonomy waiting for approval
+        
+    Returns:
+        GraphState with taxonomy_approved set to True
+        
+    Raises:
+        ValueError: If no taxonomy exists to approve
+        
+    Example:
+        >>> # After reviewing the taxonomy
+        >>> state = approve_taxonomy(state)
+        >>> # Now the pipeline can proceed to classification
+    """
+    if state.get("topic_hierarchy") is None:
+        raise ValueError("No taxonomy found to approve. Build taxonomy first.")
+    
+    state["taxonomy_approved"] = True
+    logger.info("Taxonomy explicitly approved. Classification can now proceed.")
     
     return state
 

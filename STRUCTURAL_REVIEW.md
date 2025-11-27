@@ -9,7 +9,7 @@ This review highlights high-level issues that can impact the overall workflow or
 - **Suggestion:** After successfully building and saving the FAISS index, iterate through `state["papers"]` and set each parsed paper to `"embedded"` (or introduce a dedicated transition step) so later stages can proceed.
 
 ## 2) "Ingestion only" execution still runs the full workflow
-- `WorkflowExecutor.run_ingestion_only` is documented to stop after embeddings, but it constructs the full graph and invokes it without any guard rails or alternate routing.【F:workflow_orchestrator.py†L1014-L1041】
+- `WorkflowExecutor.run_ingestion_only` is documented to stop after embeddings, but it constructs the full graph and invokes it without any guardrails or alternate routing.【F:workflow_orchestrator.py†L1014-L1041】
 - **Impact:** Calling this helper unexpectedly runs summarization, taxonomy, classification, and export, which can be expensive and bypass manual review gates.
 - **Suggestion:** Compile a graph that omits post-embedding nodes or configure the supervisor to route to `END` once embeddings finish when this mode is requested.
 

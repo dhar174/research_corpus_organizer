@@ -70,6 +70,7 @@ from workflow_orchestrator import (
     retry_failed_papers,
     list_failed_papers,
     ErrorRecoveryManager,
+    WorkflowStallError,
     
     # Cost Tracking
     initialize_cost_tracking,
@@ -785,6 +786,151 @@ def test_stop_after_embedding_in_state():
 
 
 # =============================================================================
+# Structural Review Fixes Tests (STRUCTURAL_REVIEW.md)
+# =============================================================================
+
+def test_stall_detection_missing_dependency():
+    """Test that stall detection raises error when dependency is missing."""
+    print("\n=== Test: Stall Detection - Missing Dependency ===")
+    
+    import workflow_orchestrator
+    
+    # Save original value
+    original_pdf_parser_available = workflow_orchestrator.PDF_PARSER_AVAILABLE
+    
+    try:
+        # Simulate PDF parser being unavailable
+        workflow_orchestrator.PDF_PARSER_AVAILABLE = False
+        
+        config = create_default_config()
+        coordinator = SupervisorCoordinator(config)
+        
+        # Create state with pending papers in parsing phase
+        state = create_sample_state()
+        state["current_phase"] = "parsing"
+        
+        # Ensure all papers are pending
+        for paper in state["papers"].values():
+            paper.processing_status = "pending"
+        
+        # Should raise WorkflowStallError because PDF parser is not available
+        try:
+            coordinator.decide_next_stage(state)
+            assert False, "Should have raised WorkflowStallError"
+        except WorkflowStallError as e:
+            assert "PDF parser" in str(e), f"Error should mention PDF parser: {e}"
+            assert e.stage == "parsing", f"Error stage should be 'parsing': {e.stage}"
+            assert "missing_dependency" in e.details, "Details should include missing_dependency"
+            print(f"✓ Correctly raised WorkflowStallError: {e}")
+    finally:
+        # Restore original value
+        workflow_orchestrator.PDF_PARSER_AVAILABLE = original_pdf_parser_available
+
+
+def test_stall_detection_no_progress():
+    """Test that stall detection catches repeated iterations without progress."""
+    print("\n=== Test: Stall Detection - No Progress ===")
+    
+    import workflow_orchestrator
+    
+    # Save original value
+    original_pdf_parser_available = workflow_orchestrator.PDF_PARSER_AVAILABLE
+    
+    try:
+        # Simulate PDF parser being available (so we don't trigger missing dependency check)
+        workflow_orchestrator.PDF_PARSER_AVAILABLE = True
+        
+        config = create_default_config()
+        coordinator = SupervisorCoordinator(config)
+        
+        # Create state with pending papers in parsing phase
+        state = create_sample_state()
+        state["current_phase"] = "parsing"
+        
+        # Ensure all papers are pending
+        for paper in state["papers"].values():
+            paper.processing_status = "pending"
+        
+        # Set previous status same as current to simulate no progress
+        status_counts = {"pending": 5}
+        state["_previous_status_counts"] = status_counts.copy()
+        state["_stall_count"] = 2  # Already at 2 stalls, next will trigger error
+        
+        # Should raise WorkflowStallError after max stall iterations
+        try:
+            coordinator.decide_next_stage(state)
+            assert False, "Should have raised WorkflowStallError after 3 iterations"
+        except WorkflowStallError as e:
+            assert "no progress" in str(e).lower(), f"Error should mention no progress: {e}"
+            assert e.stage == "parsing", f"Error stage should be 'parsing': {e.stage}"
+            print(f"✓ Correctly raised WorkflowStallError for no progress: {e}")
+    finally:
+        # Restore original value
+        workflow_orchestrator.PDF_PARSER_AVAILABLE = original_pdf_parser_available
+
+
+def test_stall_detection_resets_on_progress():
+    """Test that stall counter resets when progress is made."""
+    print("\n=== Test: Stall Detection - Counter Resets on Progress ===")
+    
+    import workflow_orchestrator
+    
+    # Save original value
+    original_pdf_parser_available = workflow_orchestrator.PDF_PARSER_AVAILABLE
+    
+    try:
+        # Simulate PDF parser being available
+        workflow_orchestrator.PDF_PARSER_AVAILABLE = True
+        
+        config = create_default_config()
+        coordinator = SupervisorCoordinator(config)
+        
+        # Create state with pending papers in parsing phase
+        state = create_sample_state()
+        state["current_phase"] = "parsing"
+        
+        # Ensure all papers are pending
+        for paper in state["papers"].values():
+            paper.processing_status = "pending"
+        
+        # Set previous status different from current (progress was made)
+        state["_previous_status_counts"] = {"pending": 3, "parsed": 2}
+        state["_stall_count"] = 2  # Was at 2 stalls
+        
+        # Should not raise error and should reset stall count
+        next_stage = coordinator.decide_next_stage(state)
+        
+        assert next_stage == "parse", f"Should continue to parse, got {next_stage}"
+        assert state.get("_stall_count") == 0, f"Stall count should reset to 0, got {state.get('_stall_count')}"
+        
+        print("✓ Stall counter correctly resets when progress is detected")
+    finally:
+        # Restore original value
+        workflow_orchestrator.PDF_PARSER_AVAILABLE = original_pdf_parser_available
+
+
+def test_workflow_stall_error_attributes():
+    """Test WorkflowStallError has correct attributes."""
+    print("\n=== Test: WorkflowStallError Attributes ===")
+    
+    error = WorkflowStallError(
+        message="Test stall error",
+        stage="parsing",
+        details={"key": "value"}
+    )
+    
+    assert str(error) == "Test stall error", "Message should match"
+    assert error.stage == "parsing", "Stage should be 'parsing'"
+    assert error.details == {"key": "value"}, "Details should match"
+    
+    # Test with default empty details
+    error2 = WorkflowStallError(message="Another error", stage="embed")
+    assert error2.details == {}, "Default details should be empty dict"
+    
+    print("✓ WorkflowStallError has correct attributes")
+
+
+# =============================================================================
 # Run All Tests
 # =============================================================================
 
@@ -839,6 +985,12 @@ def run_all_tests():
         test_approve_taxonomy_function,
         test_cost_tracking_in_nodes,
         test_stop_after_embedding_in_state,
+        
+        # Structural Review Fixes (STRUCTURAL_REVIEW.md)
+        test_stall_detection_missing_dependency,
+        test_stall_detection_no_progress,
+        test_stall_detection_resets_on_progress,
+        test_workflow_stall_error_attributes,
     ]
     
     passed = 0

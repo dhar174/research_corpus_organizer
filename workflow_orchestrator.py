@@ -91,6 +91,35 @@ except ImportError:
     TAXONOMY_AVAILABLE = False
     logger.warning("topic_taxonomy not available")
 
+
+# =============================================================================
+# Custom Exceptions
+# =============================================================================
+
+class WorkflowStallError(Exception):
+    """
+    Raised when the workflow detects a stall condition.
+    
+    A stall occurs when:
+    - A required dependency is missing (e.g., PDF parser not available)
+    - Papers are stuck in the same status across multiple iterations
+    - No progress is being made despite repeated processing attempts
+    """
+    
+    def __init__(self, message: str, stage: str, details: dict = None):
+        """
+        Initialize the stall error.
+        
+        Args:
+            message: Human-readable error message
+            stage: The stage where the stall occurred
+            details: Additional context about the stall
+        """
+        super().__init__(message)
+        self.stage = stage
+        self.details = details or {}
+
+
 # Export list
 __all__ = [
     # Step 13.1: Graph Structure
@@ -133,6 +162,7 @@ __all__ = [
     'create_recovery_checkpoint',
     'rollback_to_checkpoint',
     'ErrorRecoveryManager',
+    'WorkflowStallError',
     
     # Phase 17: Cost Tracking Integration
     'initialize_cost_tracking',
@@ -200,6 +230,10 @@ class SupervisorCoordinator:
         Returns:
             Next stage name: 'parse', 'metadata', 'embed', 'summarize', 
                            'taxonomy', 'classify', 'export', or 'end'
+                           
+        Raises:
+            WorkflowStallError: If a stall condition is detected (missing dependencies,
+                               no progress being made)
         """
         current_phase = state.get("current_phase", "initialization")
         papers = state.get("papers", {})
@@ -218,6 +252,13 @@ class SupervisorCoordinator:
         
         self.logger.info(f"Paper status counts: {dict(status_counts)}")
         
+        # Stall detection: track status counts to detect when no progress is made
+        previous_status = state.get("_previous_status_counts", {})
+        current_status = dict(status_counts)
+        
+        # Update state with current status for next iteration
+        state["_previous_status_counts"] = current_status
+        
         # Decision tree based on current phase and paper statuses
         # Each phase transitions to the next when its work is complete
         
@@ -231,6 +272,16 @@ class SupervisorCoordinator:
             pending_parse = sum(1 for p in papers.values() 
                               if p.processing_status == "pending")
             if pending_parse > 0:
+                # Stall detection: check if we're making progress
+                self._check_for_stall(
+                    state=state,
+                    stage="parsing",
+                    current_status=current_status,
+                    previous_status=previous_status,
+                    required_dependency=("PDF parser", PDF_PARSER_AVAILABLE),
+                    stuck_status="pending",
+                    stuck_count=pending_parse
+                )
                 return "parse"  # Continue parsing remaining papers
             else:
                 return "metadata"  # All parsed, move to metadata extraction
@@ -277,6 +328,85 @@ class SupervisorCoordinator:
             # Unknown phase - gracefully terminate
             self.logger.warning(f"Unknown phase: {current_phase}, ending workflow")
             return "end"
+    
+    def _check_for_stall(
+        self,
+        state: GraphState,
+        stage: str,
+        current_status: dict,
+        previous_status: dict,
+        required_dependency: tuple,
+        stuck_status: str,
+        stuck_count: int
+    ) -> None:
+        """
+        Check for stall conditions and raise WorkflowStallError if detected.
+        
+        A stall is detected when:
+        1. A required dependency is not available AND
+        2. Papers are stuck in a status that requires that dependency
+        
+        Args:
+            state: Current GraphState
+            stage: Current workflow stage name
+            current_status: Current paper status counts
+            previous_status: Previous paper status counts
+            required_dependency: Tuple of (dependency_name, is_available)
+            stuck_status: The status that papers are stuck in
+            stuck_count: Number of papers stuck in that status
+            
+        Raises:
+            WorkflowStallError: If a stall condition is detected
+        """
+        dep_name, dep_available = required_dependency
+        
+        # Check if dependency is missing and papers are stuck
+        if not dep_available and stuck_count > 0:
+            # Immediate fail-fast: dependency is missing
+            raise WorkflowStallError(
+                message=(
+                    f"Workflow stalled at '{stage}' stage: {dep_name} is not available, "
+                    f"but {stuck_count} papers require processing. "
+                    f"Install the missing dependency or remove the papers to proceed."
+                ),
+                stage=stage,
+                details={
+                    "missing_dependency": dep_name,
+                    "stuck_papers": stuck_count,
+                    "stuck_status": stuck_status,
+                    "current_status_counts": current_status
+                }
+            )
+        
+        # Check for progress stall (same status counts as previous iteration)
+        if previous_status and current_status == previous_status:
+            stall_count = state.get("_stall_count", 0) + 1
+            state["_stall_count"] = stall_count
+            
+            # Allow some iterations for processing, but detect persistent stalls
+            max_stall_iterations = 3
+            if stall_count >= max_stall_iterations:
+                raise WorkflowStallError(
+                    message=(
+                        f"Workflow stalled at '{stage}' stage: no progress made after "
+                        f"{stall_count} iterations. {stuck_count} papers remain in "
+                        f"'{stuck_status}' status."
+                    ),
+                    stage=stage,
+                    details={
+                        "iterations_without_progress": stall_count,
+                        "stuck_papers": stuck_count,
+                        "stuck_status": stuck_status,
+                        "current_status_counts": current_status
+                    }
+                )
+            else:
+                self.logger.warning(
+                    f"Potential stall detected at '{stage}': iteration {stall_count}/{max_stall_iterations}"
+                )
+        else:
+            # Reset stall counter on progress
+            state["_stall_count"] = 0
     
     def update_queue(self, state: GraphState) -> GraphState:
         """

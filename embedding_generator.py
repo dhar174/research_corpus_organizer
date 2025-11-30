@@ -992,6 +992,19 @@ def embedding_generation_worker(
         state["faiss_index_path"] = index_path
         state["faiss_meta_path"] = metadata_path
         
+        # Step 5: Update paper statuses to "embedded"
+        # This ensures downstream stages (classification, etc.) can select these papers
+        papers_embedded = 0
+        for paper_id, chunks in state["chunks"].items():
+            if paper_id in state["papers"]:
+                paper = state["papers"][paper_id]
+                # Only update papers that were successfully parsed (have chunks)
+                if paper.processing_status in ["parsed", "pending"] and len(chunks) > 0:
+                    paper.processing_status = "embedded"
+                    papers_embedded += 1
+        
+        logger.info(f"Updated {papers_embedded} papers to 'embedded' status")
+        
         # Update processing phase
         state["current_phase"] = "embedded"
         

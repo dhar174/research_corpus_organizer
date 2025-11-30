@@ -62,6 +62,10 @@ EMBEDDING_MODEL_PRICING = {
     "text-embedding-ada-002": 0.10,
 }
 
+# Paper statuses that are eligible for embedding status update
+# Papers must be in one of these statuses to be updated to "embedded"
+ELIGIBLE_FOR_EMBEDDING_UPDATE = ["parsed", "pending"]
+
 # Export list
 __all__ = [
     # Step 5.1: Embedding Generator
@@ -999,7 +1003,7 @@ def embedding_generation_worker(
             if paper_id in state["papers"]:
                 paper = state["papers"][paper_id]
                 # Only update papers that were successfully parsed (have chunks)
-                if paper.processing_status in ["parsed", "pending"] and len(chunks) > 0:
+                if paper.processing_status in ELIGIBLE_FOR_EMBEDDING_UPDATE and len(chunks) > 0:
                     paper.processing_status = "embedded"
                     papers_embedded += 1
         

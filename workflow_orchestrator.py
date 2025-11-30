@@ -104,6 +104,14 @@ class WorkflowStallError(Exception):
     - A required dependency is missing (e.g., PDF parser not available)
     - Papers are stuck in the same status across multiple iterations
     - No progress is being made despite repeated processing attempts
+    
+    Example:
+        >>> try:
+        ...     result = workflow_executor.run_full_pipeline()
+        ... except WorkflowStallError as e:
+        ...     print(f"Stall at {e.stage}: {e}")
+        ...     print(f"Details: {e.details}")
+        ...     # Handle recovery: install missing dep, retry, or skip stage
     """
     
     def __init__(self, message: str, stage: str, details: dict = None):
@@ -205,6 +213,9 @@ class SupervisorCoordinator:
     The supervisor decides which stage to execute next based on the current
     state and handles failures gracefully.
     """
+    
+    # Maximum number of iterations without progress before raising stall error
+    MAX_STALL_ITERATIONS = 3
     
     def __init__(self, config: RunConfig):
         """
@@ -384,8 +395,7 @@ class SupervisorCoordinator:
             state["_stall_count"] = stall_count
             
             # Allow some iterations for processing, but detect persistent stalls
-            max_stall_iterations = 3
-            if stall_count >= max_stall_iterations:
+            if stall_count >= self.MAX_STALL_ITERATIONS:
                 raise WorkflowStallError(
                     message=(
                         f"Workflow stalled at '{stage}' stage: no progress made after "
@@ -402,7 +412,7 @@ class SupervisorCoordinator:
                 )
             else:
                 self.logger.warning(
-                    f"Potential stall detected at '{stage}': iteration {stall_count}/{max_stall_iterations}"
+                    f"Potential stall detected at '{stage}': iteration {stall_count}/{self.MAX_STALL_ITERATIONS}"
                 )
         else:
             # Reset stall counter on progress

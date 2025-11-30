@@ -623,8 +623,8 @@ def test_embedding_generation_worker():
 def test_embedding_worker_updates_paper_status():
     """Test that embedding worker updates paper statuses to 'embedded'."""
     if not EMBEDDING_MODULE_AVAILABLE or not NUMPY_AVAILABLE or not FAISS_AVAILABLE:
-        print("Skipping test_embedding_worker_updates_paper_status: dependencies not available")
-        return
+        import pytest
+        pytest.skip("dependencies not available: EMBEDDING_MODULE, NUMPY, or FAISS")
     
     print("\n" + "=" * 70)
     print("Test: Embedding Worker Updates Paper Status (STRUCTURAL_REVIEW fix)")

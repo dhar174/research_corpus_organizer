@@ -599,11 +599,10 @@ def test_embedding_generation_worker():
             updated_state = embedding_generation_worker(state, api_key="test_key")
             
             print(f"\nWorker completed:")
-            print(f"  Phase: {updated_state['current_phase']}")
             print(f"  Embeddings: {updated_state['stats']['embedding_count']}")
             print(f"  Index path: {updated_state['faiss_index_path']}")
             
-            assert updated_state['current_phase'] == "embedded"
+            # Note: current_phase is now set by the embedding_node wrapper, not the worker
             assert updated_state['stats']['embedding_count'] == 3
             
             # Check files were created

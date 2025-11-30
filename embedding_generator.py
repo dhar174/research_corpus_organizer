@@ -62,9 +62,9 @@ EMBEDDING_MODEL_PRICING = {
     "text-embedding-ada-002": 0.10,
 }
 
-# Paper statuses that are eligible for embedding status update
-# Papers must be in one of these statuses to be updated to "embedded"
-ELIGIBLE_FOR_EMBEDDING_UPDATE = ["parsed", "pending"]
+# Paper statuses papers must have before being updated to "embedded"
+# These are the "pre-embedding" statuses - only parsed papers should be embedded
+PRE_EMBEDDING_STATUSES = ["parsed"]
 
 # Export list
 __all__ = [
@@ -1003,14 +1003,16 @@ def embedding_generation_worker(
             if paper_id in state["papers"]:
                 paper = state["papers"][paper_id]
                 # Only update papers that were successfully parsed (have chunks)
-                if paper.processing_status in ELIGIBLE_FOR_EMBEDDING_UPDATE and len(chunks) > 0:
+                if paper.processing_status in PRE_EMBEDDING_STATUSES and len(chunks) > 0:
                     paper.processing_status = "embedded"
                     papers_embedded += 1
+            else:
+                logger.warning(f"Paper ID '{paper_id}' found in state['chunks'] but missing from state['papers']. Skipping embedding status update for this paper. Chunks count: {len(chunks)}")
         
         logger.info(f"Updated {papers_embedded} papers to 'embedded' status")
         
-        # Update processing phase
-        state["current_phase"] = "embedded"
+        # Note: current_phase is set by the embedding_node wrapper in workflow_orchestrator.py
+        # The worker should not set the phase as it will be overwritten
         
         logger.info("Embedding generation worker completed successfully")
         

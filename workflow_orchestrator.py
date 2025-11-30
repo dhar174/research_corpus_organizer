@@ -243,8 +243,9 @@ class SupervisorCoordinator:
                            'taxonomy', 'classify', 'export', or 'end'
                            
         Raises:
-            WorkflowStallError: If a stall condition is detected (missing dependencies,
-                               no progress being made)
+            WorkflowStallError: If a stall condition is detected, including:
+                - Required dependency unavailable (immediate fail-fast)
+                - No progress after MAX_STALL_ITERATIONS (default: 3) consecutive iterations
         """
         current_phase = state.get("current_phase", "initialization")
         papers = state.get("papers", {})

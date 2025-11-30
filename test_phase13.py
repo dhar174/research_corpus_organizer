@@ -52,6 +52,7 @@ from workflow_orchestrator import (
     run_summarization_only,
     run_classification_only,
     rebuild_taxonomy,
+    approve_taxonomy,
     WorkflowExecutor,
     
     # Step 13.5: Visualization
@@ -69,6 +70,9 @@ from workflow_orchestrator import (
     retry_failed_papers,
     list_failed_papers,
     ErrorRecoveryManager,
+    
+    # Cost Tracking
+    initialize_cost_tracking,
 )
 
 
@@ -645,6 +649,142 @@ def test_list_failed_papers():
 
 
 # =============================================================================
+# Architecture Review Fixes Tests
+# =============================================================================
+
+def test_ingestion_only_stops_after_embedding():
+    """Test that ingestion-only mode stops after embedding phase."""
+    print("\n=== Test: Ingestion Only Stops After Embedding ===")
+    
+    config = create_default_config()
+    coordinator = SupervisorCoordinator(config)
+    
+    state = create_sample_state()
+    
+    # Simulate that embedding is complete
+    state["current_phase"] = "embedding"
+    state["stop_after_embedding"] = True
+    
+    # With stop_after_embedding=True, should route to "end" after embedding
+    next_stage = coordinator.decide_next_stage(state)
+    assert next_stage == "end", f"With stop_after_embedding=True, should end after embedding, got {next_stage}"
+    
+    # Without the flag, should continue to summarize
+    state["stop_after_embedding"] = False
+    next_stage = coordinator.decide_next_stage(state)
+    assert next_stage == "summarize", f"Without stop_after_embedding, should continue to summarize, got {next_stage}"
+    
+    print("✓ Ingestion-only mode correctly stops after embedding")
+
+
+def test_taxonomy_approval_respected():
+    """Test that taxonomy_approval_required setting is respected."""
+    print("\n=== Test: Taxonomy Approval Required Respected ===")
+    
+    # Create config with approval required
+    config_approval_required = create_default_config(taxonomy_approval_required=True)
+    builder_approval = WorkflowBuilder(config_approval_required)
+    taxonomy_review_node = builder_approval._create_taxonomy_review_node()
+    
+    state = create_sample_state()
+    state["config"] = config_approval_required
+    state["topic_hierarchy"] = create_sample_taxonomy()
+    state["taxonomy_approved"] = False
+    
+    # Run taxonomy review with approval required
+    result_state = taxonomy_review_node(state)
+    
+    # Taxonomy should NOT be auto-approved when approval is required
+    assert result_state.get("taxonomy_approved") == False, \
+        "Taxonomy should NOT be auto-approved when taxonomy_approval_required=True"
+    
+    # Create config without approval required
+    config_no_approval = create_default_config(taxonomy_approval_required=False)
+    builder_no_approval = WorkflowBuilder(config_no_approval)
+    taxonomy_review_node_auto = builder_no_approval._create_taxonomy_review_node()
+    
+    state2 = create_sample_state()
+    state2["config"] = config_no_approval
+    state2["topic_hierarchy"] = create_sample_taxonomy()
+    state2["taxonomy_approved"] = False
+    
+    # Run taxonomy review without approval required
+    result_state2 = taxonomy_review_node_auto(state2)
+    
+    # Taxonomy SHOULD be auto-approved when approval is not required
+    assert result_state2.get("taxonomy_approved") == True, \
+        "Taxonomy should be auto-approved when taxonomy_approval_required=False"
+    
+    print("✓ taxonomy_approval_required setting is correctly respected")
+
+
+def test_approve_taxonomy_function():
+    """Test the approve_taxonomy helper function."""
+    print("\n=== Test: approve_taxonomy Function ===")
+    
+    from workflow_orchestrator import approve_taxonomy
+    
+    state = create_sample_state()
+    state["topic_hierarchy"] = create_sample_taxonomy()
+    state["taxonomy_approved"] = False
+    
+    # Approve taxonomy
+    updated_state = approve_taxonomy(state)
+    
+    assert updated_state["taxonomy_approved"] == True, "Taxonomy should be approved"
+    
+    # Test error when no taxonomy exists
+    state_no_taxonomy = create_sample_state()
+    state_no_taxonomy["topic_hierarchy"] = None
+    
+    try:
+        approve_taxonomy(state_no_taxonomy)
+        assert False, "Should raise ValueError when no taxonomy exists"
+    except ValueError as e:
+        assert "No taxonomy found" in str(e)
+    
+    print("✓ approve_taxonomy function works correctly")
+
+
+def test_cost_tracking_in_nodes():
+    """Test that cost tracking is wired into worker nodes."""
+    print("\n=== Test: Cost Tracking in Worker Nodes ===")
+    
+    from workflow_orchestrator import initialize_cost_tracking
+    
+    # Create config with cost tracking enabled
+    config = create_default_config(enable_cost_tracking=True)
+    
+    state = create_sample_state()
+    state["config"] = config
+    
+    # Initialize cost tracking
+    state = initialize_cost_tracking(state)
+    
+    assert state.get("cost_tracker") is not None, "Cost tracker should be initialized"
+    assert state.get("total_cost") == 0.0, "Initial cost should be 0"
+    
+    # Verify cost_breakdown dict exists
+    assert "cost_breakdown" in state, "Should have cost_breakdown dict"
+    
+    print("✓ Cost tracking infrastructure is properly initialized")
+
+
+def test_stop_after_embedding_in_state():
+    """Test that stop_after_embedding flag is included in initial state."""
+    print("\n=== Test: stop_after_embedding Flag in State ===")
+    
+    config = create_default_config()
+    state = StateManager.create_initial_state(config)
+    
+    # Verify the flag exists and defaults to False
+    assert "stop_after_embedding" in state, "stop_after_embedding should be in state"
+    assert state["stop_after_embedding"] is False, "stop_after_embedding should default to False"
+    
+    print("✓ stop_after_embedding flag properly initialized in state")
+
+
+# =============================================================================
 # Run All Tests
 # =============================================================================
 
@@ -692,6 +832,13 @@ def run_all_tests():
         test_error_recovery_manager,
         test_retry_failed_papers,
         test_list_failed_papers,
+        
+        # Architecture Review Fixes
+        test_ingestion_only_stops_after_embedding,
+        test_taxonomy_approval_respected,
+        test_approve_taxonomy_function,
+        test_cost_tracking_in_nodes,
+        test_stop_after_embedding_in_state,
     ]
     
     passed = 0

@@ -164,26 +164,6 @@ TAXONOMY_INPUT_TOKENS_PER_TOPIC = 200   # ~800 chars of topic context
 TAXONOMY_OUTPUT_TOKENS_PER_TOPIC = 50   # ~200 chars label + description
 
 
-def _add_budget_error(state: GraphState, stage: str, error: Exception) -> GraphState:
-    """
-    Add a budget exceeded error to the state.
-    
-    Args:
-        state: Current GraphState
-        stage: Pipeline stage where error occurred
-        error: BudgetExceededError that was raised
-        
-    Returns:
-        Updated GraphState with error appended
-    """
-    state["errors"].append({
-        "stage": stage,
-        "error": f"Budget exceeded: {error}",
-        "timestamp": datetime.now().isoformat()
-    })
-    return state
-
-
 # =============================================================================
 # Step 13.2: Supervisor Node and Coordinator
 # =============================================================================
@@ -620,20 +600,18 @@ class WorkflowBuilder:
                     state = embedding_generation_worker(state, api_key)
                     
                     # Update cost tracking with actual token usage
+                    # Note: BudgetExceededError is handled by update_cost_tracking
+                    # which logs and records the error before re-raising
                     if config and config.enable_cost_tracking and total_tokens > 0:
-                        try:
-                            state = update_cost_tracking(
-                                state=state,
-                                operation="embedding",
-                                model=config.embedding_model,
-                                input_tokens=total_tokens,
-                                output_tokens=0,  # Embeddings don't produce output tokens
-                                is_batch=config.batch_api_calls
-                            )
-                            logger.info(f"Cost tracking updated for embedding: {total_tokens} tokens")
-                        except BudgetExceededError as e:
-                            logger.error(f"Budget exceeded during embedding: {e}")
-                            state = _add_budget_error(state, "embedding", e)
+                        state = update_cost_tracking(
+                            state=state,
+                            operation="embedding",
+                            model=config.embedding_model,
+                            input_tokens=total_tokens,
+                            output_tokens=0,  # Embeddings don't produce output tokens
+                            is_batch=config.batch_api_calls
+                        )
+                        logger.info(f"Cost tracking updated for embedding: {total_tokens} tokens")
                 else:
                     logger.warning("Embedding generator not available")
                 
@@ -682,20 +660,18 @@ class WorkflowBuilder:
                     state = summarize_papers_worker(state, api_key)
                     
                     # Update cost tracking with token usage
+                    # Note: BudgetExceededError is handled by update_cost_tracking
+                    # which logs and records the error before re-raising
                     if config and config.enable_cost_tracking and num_papers > 0:
-                        try:
-                            state = update_cost_tracking(
-                                state=state,
-                                operation="summarization",
-                                model=config.summary_model,
-                                input_tokens=estimated_input_tokens,
-                                output_tokens=estimated_output_tokens,
-                                is_batch=config.batch_api_calls
-                            )
-                            logger.info(f"Cost tracking updated for summarization: {num_papers} papers")
-                        except BudgetExceededError as e:
-                            logger.error(f"Budget exceeded during summarization: {e}")
-                            state = _add_budget_error(state, "summarization", e)
+                        state = update_cost_tracking(
+                            state=state,
+                            operation="summarization",
+                            model=config.summary_model,
+                            input_tokens=estimated_input_tokens,
+                            output_tokens=estimated_output_tokens,
+                            is_batch=config.batch_api_calls
+                        )
+                        logger.info(f"Cost tracking updated for summarization: {num_papers} papers")
                 else:
                     logger.warning("Summarization not available")
                 
@@ -770,19 +746,17 @@ class WorkflowBuilder:
                             estimated_input_tokens = num_topics * TAXONOMY_INPUT_TOKENS_PER_TOPIC
                             estimated_output_tokens = num_topics * TAXONOMY_OUTPUT_TOKENS_PER_TOPIC
                             
-                            try:
-                                state = update_cost_tracking(
-                                    state=state,
-                                    operation="taxonomy",
-                                    model=config.taxonomy_model,
-                                    input_tokens=estimated_input_tokens,
-                                    output_tokens=estimated_output_tokens,
-                                    is_batch=config.batch_api_calls
-                                )
-                                logger.info(f"Cost tracking updated for taxonomy: {num_topics} topics")
-                            except BudgetExceededError as e:
-                                logger.error(f"Budget exceeded during taxonomy: {e}")
-                                state = _add_budget_error(state, "taxonomy", e)
+                            # Note: BudgetExceededError is handled by update_cost_tracking
+                            # which logs and records the error before re-raising
+                            state = update_cost_tracking(
+                                state=state,
+                                operation="taxonomy",
+                                model=config.taxonomy_model,
+                                input_tokens=estimated_input_tokens,
+                                output_tokens=estimated_output_tokens,
+                                is_batch=config.batch_api_calls
+                            )
+                            logger.info(f"Cost tracking updated for taxonomy: {num_topics} topics")
                         
                         # If approval not required, auto-approve
                         if not state["config"].taxonomy_approval_required:
@@ -874,20 +848,18 @@ class WorkflowBuilder:
                     state = classification_worker(state, api_key)
                     
                     # Update cost tracking with token usage
+                    # Note: BudgetExceededError is handled by update_cost_tracking
+                    # which logs and records the error before re-raising
                     if config and config.enable_cost_tracking and num_papers > 0:
-                        try:
-                            state = update_cost_tracking(
-                                state=state,
-                                operation="classification",
-                                model=config.classification_model,
-                                input_tokens=estimated_input_tokens,
-                                output_tokens=estimated_output_tokens,
-                                is_batch=config.batch_api_calls
-                            )
-                            logger.info(f"Cost tracking updated for classification: {num_papers} papers")
-                        except BudgetExceededError as e:
-                            logger.error(f"Budget exceeded during classification: {e}")
-                            state = _add_budget_error(state, "classification", e)
+                        state = update_cost_tracking(
+                            state=state,
+                            operation="classification",
+                            model=config.classification_model,
+                            input_tokens=estimated_input_tokens,
+                            output_tokens=estimated_output_tokens,
+                            is_batch=config.batch_api_calls
+                        )
+                        logger.info(f"Cost tracking updated for classification: {num_papers} papers")
                 else:
                     logger.warning("Classification not available")
                 

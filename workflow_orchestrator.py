@@ -582,12 +582,7 @@ class WorkflowBuilder:
             """Generate embeddings for all chunks."""
             logger.info("=== Embedding Node ===")
             
-            # Count tokens before processing for cost tracking
-            total_tokens = 0
             config = state.get("config")
-            for paper_id, chunks in state.get("chunks", {}).items():
-                for chunk in chunks:
-                    total_tokens += len(chunk.text) // CHARS_PER_TOKEN
             
             try:
                 if EMBEDDING_GENERATOR_AVAILABLE:
@@ -600,18 +595,21 @@ class WorkflowBuilder:
                     state = embedding_generation_worker(state, api_key)
                     
                     # Update cost tracking with actual token usage
-                    # Note: BudgetExceededError is handled by update_cost_tracking
-                    # which logs and records the error before re-raising
-                    if config and config.enable_cost_tracking and total_tokens > 0:
-                        state = update_cost_tracking(
-                            state=state,
-                            operation="embedding",
-                            model=config.embedding_model,
-                            input_tokens=total_tokens,
-                            output_tokens=0,  # Embeddings don't produce output tokens
-                            is_batch=config.batch_api_calls
-                        )
-                        logger.info(f"Cost tracking updated for embedding: {total_tokens} tokens")
+                    if config and config.enable_cost_tracking:
+                        total_tokens = 0
+                        for paper_id, chunks in state.get("chunks", {}).items():
+                            for chunk in chunks:
+                                total_tokens += len(chunk.text) // CHARS_PER_TOKEN
+                        if total_tokens > 0:
+                            state = update_cost_tracking(
+                                state=state,
+                                operation="embedding",
+                                model=config.embedding_model,
+                                input_tokens=total_tokens,
+                                output_tokens=0,  # Embeddings don't produce output tokens
+                                is_batch=config.batch_api_calls
+                            )
+                            logger.info(f"Cost tracking updated for embedding: {total_tokens} tokens")
                 else:
                     logger.warning("Embedding generator not available")
                 
@@ -660,8 +658,6 @@ class WorkflowBuilder:
                     state = summarize_papers_worker(state, api_key)
                     
                     # Update cost tracking with token usage
-                    # Note: BudgetExceededError is handled by update_cost_tracking
-                    # which logs and records the error before re-raising
                     if config and config.enable_cost_tracking and num_papers > 0:
                         state = update_cost_tracking(
                             state=state,
@@ -746,8 +742,6 @@ class WorkflowBuilder:
                             estimated_input_tokens = num_topics * TAXONOMY_INPUT_TOKENS_PER_TOPIC
                             estimated_output_tokens = num_topics * TAXONOMY_OUTPUT_TOKENS_PER_TOPIC
                             
-                            # Note: BudgetExceededError is handled by update_cost_tracking
-                            # which logs and records the error before re-raising
                             state = update_cost_tracking(
                                 state=state,
                                 operation="taxonomy",
@@ -757,10 +751,6 @@ class WorkflowBuilder:
                                 is_batch=config.batch_api_calls
                             )
                             logger.info(f"Cost tracking updated for taxonomy: {num_topics} topics")
-                        
-                        # If approval not required, auto-approve
-                        if not state["config"].taxonomy_approval_required:
-                            state["taxonomy_approved"] = True
                     else:
                         logger.error("FAISS index not found. Run embedding generation first.")
                 else:
@@ -848,8 +838,6 @@ class WorkflowBuilder:
                     state = classification_worker(state, api_key)
                     
                     # Update cost tracking with token usage
-                    # Note: BudgetExceededError is handled by update_cost_tracking
-                    # which logs and records the error before re-raising
                     if config and config.enable_cost_tracking and num_papers > 0:
                         state = update_cost_tracking(
                             state=state,

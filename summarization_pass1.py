@@ -439,7 +439,7 @@ class SummaryGenerator:
                 usage_stats = {
                     "prompt_tokens": response.usage.input_tokens if hasattr(response.usage, 'input_tokens') else response.usage.prompt_tokens,
                     "completion_tokens": response.usage.output_tokens if hasattr(response.usage, 'output_tokens') else response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
+                    "total_tokens": response.usage.total_tokens if (response.usage is not None and hasattr(response.usage, 'total_tokens')) else 0,
                     "time_seconds": elapsed,
                     "model": self.model,
                 }

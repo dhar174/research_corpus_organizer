@@ -28,6 +28,7 @@ from rag_models import (
     create_default_config
 )
 
+import pdf_parser
 from pdf_parser import (
     # Core parsing
     parse_and_chunk_worker,

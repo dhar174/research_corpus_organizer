@@ -265,8 +265,8 @@ def test_check_disk_space():
     """Test disk space checking."""
     print("Testing check_disk_space...")
     
-    # Test disk space check
-    result = check_disk_space()
+    # Test disk space check with a path that exists on all systems
+    result = check_disk_space(path="/tmp")
     
     assert 'total_bytes' in result
     assert 'free_bytes' in result

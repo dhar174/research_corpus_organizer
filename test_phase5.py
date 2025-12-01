@@ -477,7 +477,8 @@ def test_save_and_load_index():
         embedding_dim = 64
         num_embeddings = 5
         embeddings = np.random.randn(num_embeddings, embedding_dim).astype(np.float32)
-        metadata = [{"chunk_id": f"chunk{i}"} for i in range(num_embeddings)]
+        # Include all required fields for validation
+        metadata = [{"chunk_id": f"chunk{i}", "paper_id": f"paper{i % 2}"} for i in range(num_embeddings)]
         
         builder = FaissIndexBuilder(embedding_dim=embedding_dim)
         builder.build_index(embeddings, metadata)
@@ -526,6 +527,7 @@ def test_save_and_load_index():
         
         assert len(loaded_metadata) == num_embeddings
         assert loaded_metadata[0]['chunk_id'] == "chunk0"
+        assert loaded_metadata[0]['paper_id'] == "paper0"
         
         # Validate
         validation = validate_index(loaded_index, loaded_metadata)

@@ -264,20 +264,21 @@ def test_extract_abstract_from_sections():
     """Test abstract extraction from section data."""
     print("\n=== Testing Abstract Extraction from Sections ===")
     
-    full_text = "Some intro text. Abstract section here with important content about the research. Introduction follows."
+    # Use text that would produce a properly detected abstract section
+    full_text = "Some intro text. Abstract: This research paper presents important findings about machine learning and neural networks. Introduction follows here."
     
     sections = [
         {
             'label': 'abstract',
-            'start_char': 17,
-            'end_char': 83,
+            'start_char': 17,  # Points to "Abstract: This research..."
+            'end_char': 115,
             'page_start': 1,
             'page_end': 1
         },
         {
             'label': 'introduction',
-            'start_char': 84,
-            'end_char': 100,
+            'start_char': 116,
+            'end_char': 145,
             'page_start': 1,
             'page_end': 1
         }
@@ -286,7 +287,8 @@ def test_extract_abstract_from_sections():
     abstract = extract_abstract_from_sections(sections, full_text)
     print(f"  Extracted abstract: '{abstract}'")
     assert abstract is not None
-    assert "Abstract section here" in abstract
+    # The function strips "Abstract" header, so check for remaining content
+    assert "research paper presents" in abstract or "important findings" in abstract
     assert "Introduction" not in abstract
     
     # Test with no abstract section
@@ -429,7 +431,7 @@ def test_validate_metadata():
     
     # Test with minimal metadata
     paper_minimal = create_test_paper()
-    paper_minimal.title = "Title"
+    paper_minimal.title = "Title X"  # Use a title > 5 chars to test has_title = True
     
     validation = validate_metadata(paper_minimal)
     print(f"  Minimal metadata quality score: {validation['quality_score']}")

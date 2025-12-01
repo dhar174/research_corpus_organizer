@@ -434,7 +434,8 @@ class SummaryGenerator:
                     output_item = response.output[0]
                     if hasattr(output_item, 'content') and len(output_item.content) > 0:
                         summary = output_item.content[0].text
-                
+                if not summary:
+                    raise ValueError("Failed to extract summary from API response")
                 # Track usage
                 usage_stats = {
                     "prompt_tokens": response.usage.input_tokens if hasattr(response.usage, 'input_tokens') else response.usage.prompt_tokens,

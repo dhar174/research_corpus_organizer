@@ -427,14 +427,20 @@ class SummaryGenerator:
                 response = self.client.responses.create(**request_params)
                 elapsed = time.time() - start_time
                 
-                # Extract response
-                summary = response.choices[0].message.content
-                
+                # Extract response from Responses API format
+                # Response structure: response.output[0].content[0].text
+                summary = ""
+                if hasattr(response, 'output') and response.output and len(response.output) > 0:
+                    output_item = response.output[0]
+                    if hasattr(output_item, 'content') and len(output_item.content) > 0:
+                        summary = output_item.content[0].text
+                if not summary:
+                    raise ValueError("Failed to extract summary from API response")
                 # Track usage
                 usage_stats = {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
+                    "prompt_tokens": response.usage.input_tokens if hasattr(response.usage, 'input_tokens') else response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.output_tokens if hasattr(response.usage, 'output_tokens') else response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens if (response.usage is not None and hasattr(response.usage, 'total_tokens')) else 0,
                     "time_seconds": elapsed,
                     "model": self.model,
                 }

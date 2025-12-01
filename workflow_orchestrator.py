@@ -102,8 +102,7 @@ class WorkflowStallError(Exception):
     
     A stall occurs when:
     - A required dependency is missing (e.g., PDF parser not available)
-    - Papers are stuck in the same status across multiple iterations
-    - No progress is being made despite repeated processing attempts
+    - Papers are stuck in the same status across multiple iterations (no progress)
     
     Example:
         >>> try:

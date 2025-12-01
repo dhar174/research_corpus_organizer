@@ -62,9 +62,9 @@ EMBEDDING_MODEL_PRICING = {
     "text-embedding-ada-002": 0.10,
 }
 
-# Paper statuses papers must have before being updated to "embedded"
-# These are the "pre-embedding" statuses - only parsed papers should be embedded
-PRE_EMBEDDING_STATUSES = ["parsed"]
+# Internal constant: paper statuses that can be updated to "embedded"
+# Only parsed papers should be updated - this is internal-only (not exported)
+_PRE_EMBEDDING_STATUSES = ["parsed"]
 
 # Export list
 __all__ = [
@@ -1002,17 +1002,21 @@ def embedding_generation_worker(
         for paper_id, chunks in state["chunks"].items():
             if paper_id in state["papers"]:
                 paper = state["papers"][paper_id]
-                # Only update papers that were successfully parsed (have chunks)
-                if paper.processing_status in PRE_EMBEDDING_STATUSES and len(chunks) > 0:
-                    paper.processing_status = "embedded"
-                    papers_embedded += 1
+                # Update papers that were successfully parsed (have chunks)
+                if paper.processing_status in _PRE_EMBEDDING_STATUSES:
+                    if len(chunks) > 0:
+                        paper.processing_status = "embedded"
+                        papers_embedded += 1
+                    else:
+                        logger.warning(f"Paper ID '{paper_id}' has pre-embedding status '{paper.processing_status}' but zero chunks. Marking as 'embedding_failed'.")
+                        paper.processing_status = "embedding_failed"
             else:
                 logger.warning(f"Paper ID '{paper_id}' found in state['chunks'] but missing from state['papers']. Skipping embedding status update for this paper. Chunks count: {len(chunks)}")
         
         logger.info(f"Updated {papers_embedded} papers to 'embedded' status")
         
-        # Note: current_phase is set by the embedding_node wrapper in workflow_orchestrator.py
-        # The worker should not set the phase as it will be overwritten
+        # The wrapper sets current_phase to "embedding" (not "embedded").
+        # The worker should not set the phase, as it will be overwritten by the wrapper.
         
         logger.info("Embedding generation worker completed successfully")
         

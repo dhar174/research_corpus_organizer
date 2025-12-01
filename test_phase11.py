@@ -519,10 +519,11 @@ def test_deep_analysis_generator_mock():
     print("Test: Deep Analysis Generator (Mocked)")
     print("=" * 70)
     
-    # Create mock response
+    # Create mock response - Responses API format
     mock_response = MagicMock()
-    mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = """
+    mock_output_item = MagicMock()
+    mock_content_item = MagicMock()
+    mock_content_item.text = """
     Detailed Methodology Breakdown: The paper uses a transformer-based approach
     with novel attention mechanisms. Experiments were conducted on ImageNet with
     custom data augmentation. The model architecture includes residual connections.
@@ -547,6 +548,9 @@ def test_deep_analysis_generator_mock():
     - Model achieves strong results with reasonable computational cost
     - Approach generalizes well to related vision tasks
     """
+    mock_output_item.content = [mock_content_item]
+    mock_response.output = [mock_output_item]
+    mock_response.usage = MagicMock()
     mock_response.usage.prompt_tokens = 500
     mock_response.usage.completion_tokens = 400
     mock_response.usage.total_tokens = 900

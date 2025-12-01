@@ -442,14 +442,21 @@ class DeepAnalysisGenerator:
                 response = self.client.responses.create(**request_params)
                 elapsed = time.time() - start_time
                 
-                # Extract response
-                deep_analysis = response.choices[0].message.content
+                # Extract response - Responses API format: response.output[0].content[0].text
+                if response.output and len(response.output) > 0:
+                    output_item = response.output[0]
+                    if hasattr(output_item, 'content') and len(output_item.content) > 0:
+                        deep_analysis = output_item.content[0].text
+                    else:
+                        raise ValueError("No content in response output")
+                else:
+                    raise ValueError("Empty response output")
                 
-                # Track usage
+                # Track usage - Responses API uses response.usage
                 usage_stats = {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
+                    "prompt_tokens": getattr(response.usage, 'prompt_tokens', 0) if response.usage else 0,
+                    "completion_tokens": getattr(response.usage, 'completion_tokens', 0) if response.usage else 0,
+                    "total_tokens": getattr(response.usage, 'total_tokens', 0) if response.usage else 0,
                     "time_seconds": elapsed,
                     "model": self.model,
                 }

@@ -324,8 +324,15 @@ class PaperClassifier:
                 reasoning_effort=self.reasoning_effort  # Pass reasoning effort to API
             )
             
-            # Parse response
-            result_text = response.choices[0].message.content
+            # Parse response - Responses API format: response.output[0].content[0].text
+            if response.output and len(response.output) > 0:
+                output_item = response.output[0]
+                if hasattr(output_item, 'content') and len(output_item.content) > 0:
+                    result_text = output_item.content[0].text
+                else:
+                    raise ValueError("No content in response output")
+            else:
+                raise ValueError("Empty response output")
             classification = json.loads(result_text)
             
             logger.debug(f"Successfully classified paper {paper.id}")

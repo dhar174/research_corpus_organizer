@@ -62,6 +62,10 @@ EMBEDDING_MODEL_PRICING = {
     "text-embedding-ada-002": 0.10,
 }
 
+# Internal constant: paper statuses that can be updated to "embedded"
+# Only parsed papers should be updated - this is internal-only (not exported)
+_PRE_EMBEDDING_STATUSES = ["parsed"]
+
 # Export list
 __all__ = [
     # Step 5.1: Embedding Generator
@@ -992,8 +996,27 @@ def embedding_generation_worker(
         state["faiss_index_path"] = index_path
         state["faiss_meta_path"] = metadata_path
         
-        # Update processing phase
-        state["current_phase"] = "embedded"
+        # Step 5: Update paper statuses to "embedded"
+        # This ensures downstream stages (classification, etc.) can select these papers
+        papers_embedded = 0
+        for paper_id, chunks in state["chunks"].items():
+            if paper_id in state["papers"]:
+                paper = state["papers"][paper_id]
+                # Update papers that were successfully parsed (have chunks)
+                if paper.processing_status in _PRE_EMBEDDING_STATUSES:
+                    if len(chunks) > 0:
+                        paper.processing_status = "embedded"
+                        papers_embedded += 1
+                    else:
+                        logger.warning(f"Paper ID '{paper_id}' has pre-embedding status '{paper.processing_status}' but zero chunks. Marking as 'embedding_failed'.")
+                        paper.processing_status = "embedding_failed"
+            else:
+                logger.warning(f"Paper ID '{paper_id}' found in state['chunks'] but missing from state['papers']. Skipping embedding status update for this paper. Chunks count: {len(chunks)}")
+        
+        logger.info(f"Updated {papers_embedded} papers to 'embedded' status")
+        
+        # The wrapper sets current_phase to "embedding" (not "embedded").
+        # The worker should not set the phase, as it will be overwritten by the wrapper.
         
         logger.info("Embedding generation worker completed successfully")
         

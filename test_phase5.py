@@ -599,11 +599,10 @@ def test_embedding_generation_worker():
             updated_state = embedding_generation_worker(state, api_key="test_key")
             
             print(f"\nWorker completed:")
-            print(f"  Phase: {updated_state['current_phase']}")
             print(f"  Embeddings: {updated_state['stats']['embedding_count']}")
             print(f"  Index path: {updated_state['faiss_index_path']}")
             
-            assert updated_state['current_phase'] == "embedded"
+            # Note: current_phase is now set by the embedding_node wrapper, not the worker
             assert updated_state['stats']['embedding_count'] == 3
             
             # Check files were created
@@ -618,6 +617,89 @@ def test_embedding_generation_worker():
             print(f"  Metadata: {metadata_path}")
     
     print("\n✓ Worker integration test passed")
+
+
+def test_embedding_worker_updates_paper_status():
+    """Test that embedding worker updates paper statuses to 'embedded'."""
+    if not EMBEDDING_MODULE_AVAILABLE or not NUMPY_AVAILABLE or not FAISS_AVAILABLE:
+        import pytest
+        pytest.skip("dependencies not available: EMBEDDING_MODULE, NUMPY, or FAISS")
+    
+    print("\n" + "=" * 70)
+    print("Test: Embedding Worker Updates Paper Status (STRUCTURAL_REVIEW fix)")
+    print("=" * 70)
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create config and state
+        config = create_default_config()
+        state = StateManager.create_initial_state(config)
+        
+        # Set output paths
+        state["faiss_index_path"] = str(Path(tmpdir) / "index.bin")
+        state["faiss_meta_path"] = str(Path(tmpdir) / "metadata.json")
+        
+        # Add multiple test papers with "parsed" status
+        papers = []
+        for i in range(3):
+            paper = PaperRecord(
+                id=f"paper{i}",
+                file_path=f"/test/paper{i}.pdf",
+                filename=f"paper{i}.pdf",
+                title=f"Test Paper {i}",
+                processing_status="parsed"  # Papers should be parsed before embedding
+            )
+            state = StateManager.add_paper(state, paper)
+            papers.append(paper)
+            
+            # Add chunks for each paper
+            chunks = [
+                PaperChunk(
+                    paper_id=f"paper{i}",
+                    chunk_id=f"paper{i}_chunk{j}",
+                    section_label="body",
+                    page_start=1,
+                    page_end=1,
+                    text=f"Sample text from paper {i} chunk {j}."
+                )
+                for j in range(2)
+            ]
+            state = StateManager.add_chunks(state, f"paper{i}", chunks)
+        
+        print(f"\nState prepared with {len(papers)} papers, each with 2 chunks")
+        
+        # Verify initial status is "parsed"
+        for paper_id in ["paper0", "paper1", "paper2"]:
+            assert state["papers"][paper_id].processing_status == "parsed", \
+                f"Paper {paper_id} should have 'parsed' status initially"
+        
+        # Mock OpenAI response
+        mock_embedding = [0.1] * 1536
+        total_chunks = sum(len(chunks) for chunks in state["chunks"].values())
+        mock_response = Mock()
+        mock_response.data = [Mock(embedding=mock_embedding) for _ in range(total_chunks)]
+        mock_response.usage = Mock(total_tokens=150)
+        
+        with patch('embedding_generator.OpenAI') as mock_openai:
+            mock_client = Mock()
+            mock_client.embeddings.create.return_value = mock_response
+            mock_openai.return_value = mock_client
+            
+            # Run worker
+            updated_state = embedding_generation_worker(state, api_key="test_key")
+            
+            print(f"\nWorker completed:")
+            print(f"  Phase: {updated_state['current_phase']}")
+            
+            # Verify ALL papers have "embedded" status
+            for paper_id in ["paper0", "paper1", "paper2"]:
+                paper = updated_state["papers"][paper_id]
+                assert paper.processing_status == "embedded", \
+                    f"Paper {paper_id} should have 'embedded' status, got '{paper.processing_status}'"
+                print(f"  Paper {paper_id} status: {paper.processing_status}")
+            
+            print("\n✓ All paper statuses correctly updated to 'embedded'")
+    
+    print("\n✓ Paper status update test passed")
 
 
 # =============================================================================
@@ -653,6 +735,7 @@ def run_all_tests():
         
         # Worker
         ("Embedding Generation Worker", test_embedding_generation_worker),
+        ("Embedding Worker Updates Paper Status", test_embedding_worker_updates_paper_status),
     ]
     
     passed = 0

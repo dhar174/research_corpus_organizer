@@ -221,23 +221,32 @@ def test_summary_generator_mock():
 **Key Findings**: Achieves state-of-the-art results.
 **Significance**: Enables faster training."""
     
+    # Create mock response for Responses API format
+    mock_content = Mock()
+    mock_content.text = mock_summary
+    
+    mock_output_item = Mock()
+    mock_output_item.content = [mock_content]
+    
     mock_response = Mock()
-    mock_response.choices = [Mock(message=Mock(content=mock_summary))]
+    mock_response.output = [mock_output_item]
     mock_response.usage = Mock(
+        input_tokens=100,
+        output_tokens=50,
+        total_tokens=150,
         prompt_tokens=100,
-        completion_tokens=50,
-        total_tokens=150
+        completion_tokens=50
     )
     
     with patch('summarization_pass1.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         # Create generator
         generator = SummaryGenerator(
             api_key="test_key",
-            model="gpt-5.1-mini",
+            model="gpt-5-mini",
             reasoning_effort="medium",
             max_tokens=2000,
         )
@@ -314,15 +323,28 @@ def test_summarize_paper_node_mock():
     
     state = StateManager.add_chunks(state, "paper1", chunks)
     
-    # Mock API
+    # Mock API with Responses API format
     mock_summary = "This is a comprehensive summary of the paper."
+    
+    mock_content = Mock()
+    mock_content.text = mock_summary
+    
+    mock_output_item = Mock()
+    mock_output_item.content = [mock_content]
+    
     mock_response = Mock()
-    mock_response.choices = [Mock(message=Mock(content=mock_summary))]
-    mock_response.usage = Mock(prompt_tokens=50, completion_tokens=25, total_tokens=75)
+    mock_response.output = [mock_output_item]
+    mock_response.usage = Mock(
+        input_tokens=50,
+        output_tokens=25,
+        total_tokens=75,
+        prompt_tokens=50,
+        completion_tokens=25
+    )
     
     with patch('summarization_pass1.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         # Summarize paper

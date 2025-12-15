@@ -330,9 +330,9 @@ class PaperClassifier:
                 if hasattr(output_item, 'content') and len(output_item.content) > 0:
                     result_text = output_item.content[0].text
                 else:
-                    raise ValueError("No content in response output")
+                    raise ValueError(f"No content in response output for paper id={paper.id}")
             else:
-                raise ValueError("Empty response output")
+                raise ValueError(f"Empty response output for paper id={paper.id}")
             classification = json.loads(result_text)
             
             logger.debug(f"Successfully classified paper {paper.id}")

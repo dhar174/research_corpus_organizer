@@ -448,9 +448,9 @@ class DeepAnalysisGenerator:
                     if hasattr(output_item, 'content') and len(output_item.content) > 0:
                         deep_analysis = output_item.content[0].text
                     else:
-                        raise ValueError("No content in response output")
+                        raise ValueError(f"No content in response output for paper_id={paper_id}")
                 else:
-                    raise ValueError("Empty response output")
+                    raise ValueError(f"Empty response output for paper_id={paper_id}")
                 
                 # Track usage - Responses API uses response.usage
                 usage_stats = {

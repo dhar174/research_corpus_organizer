@@ -246,10 +246,11 @@ def test_paper_classifier_mock():
     hierarchy = create_sample_taxonomy()
     paper = create_sample_paper()
     
-    # Mock OpenAI response
+    # Mock OpenAI response - Responses API format
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = json.dumps({
+    mock_output_item = Mock()
+    mock_content_item = Mock()
+    mock_content_item.text = json.dumps({
         "tier1": {
             "topic_id": "T1_00",
             "confidence": 0.9,
@@ -267,10 +268,12 @@ def test_paper_classifier_mock():
         },
         "overall_notes": "Strong fit for ML/Deep Learning/CNN topic"
     })
+    mock_output_item.content = [mock_content_item]
+    mock_response.output = [mock_output_item]
     
     with patch('paper_classification.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         # Create classifier
@@ -315,19 +318,22 @@ def test_classify_paper_node_mock():
     state['topic_hierarchy'] = hierarchy
     state['papers'] = {paper.id: paper}
     
-    # Mock OpenAI response
+    # Mock OpenAI response - Responses API format
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = json.dumps({
+    mock_output_item = Mock()
+    mock_content_item = Mock()
+    mock_content_item.text = json.dumps({
         "tier1": {"topic_id": "T1_00", "confidence": 0.9, "reasoning": "ML focus"},
         "tier2": {"topic_id": "T2_00", "confidence": 0.85, "reasoning": "DL methods"},
         "tier3": {"topic_id": "T3_00", "confidence": 0.8, "reasoning": "CNN arch"},
         "overall_notes": "Good fit"
     })
+    mock_output_item.content = [mock_content_item]
+    mock_response.output = [mock_output_item]
     
     with patch('paper_classification.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         # Classify
@@ -368,19 +374,22 @@ def test_classify_papers_with_rate_limit_mock():
         for i in range(5)
     }
     
-    # Mock OpenAI response
+    # Mock OpenAI response - Responses API format
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = json.dumps({
+    mock_output_item = Mock()
+    mock_content_item = Mock()
+    mock_content_item.text = json.dumps({
         "tier1": {"topic_id": "T1_00", "confidence": 0.9, "reasoning": "ML"},
         "tier2": {"topic_id": "T2_00", "confidence": 0.85, "reasoning": "DL"},
         "tier3": {"topic_id": "T3_00", "confidence": 0.8, "reasoning": "CNN"},
         "overall_notes": "Good"
     })
+    mock_output_item.content = [mock_content_item]
+    mock_response.output = [mock_output_item]
     
     with patch('paper_classification.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         with patch('paper_classification.time.sleep'):  # Skip actual sleep in tests
@@ -428,19 +437,22 @@ def test_batch_classify_papers_mock():
     state['topic_hierarchy'] = hierarchy
     state['papers'] = papers
     
-    # Mock OpenAI
+    # Mock OpenAI - Responses API format
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = json.dumps({
+    mock_output_item = Mock()
+    mock_content_item = Mock()
+    mock_content_item.text = json.dumps({
         "tier1": {"topic_id": "T1_00", "confidence": 0.9, "reasoning": "ML"},
         "tier2": {"topic_id": "T2_00", "confidence": 0.85, "reasoning": "DL"},
         "tier3": {"topic_id": "T3_00", "confidence": 0.8, "reasoning": "CNN"},
         "overall_notes": "Good"
     })
+    mock_output_item.content = [mock_content_item]
+    mock_response.output = [mock_output_item]
     
     with patch('paper_classification.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         with patch('paper_classification.time.sleep'):
@@ -726,19 +738,22 @@ def test_classification_worker_mock():
     state['papers'] = papers
     state['taxonomy_approved'] = True
     
-    # Mock OpenAI
+    # Mock OpenAI - Responses API format
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = json.dumps({
+    mock_output_item = Mock()
+    mock_content_item = Mock()
+    mock_content_item.text = json.dumps({
         "tier1": {"topic_id": "T1_00", "confidence": 0.9, "reasoning": "ML"},
         "tier2": {"topic_id": "T2_00", "confidence": 0.85, "reasoning": "DL"},
         "tier3": {"topic_id": "T3_00", "confidence": 0.8, "reasoning": "CNN"},
         "overall_notes": "Good"
     })
+    mock_output_item.content = [mock_content_item]
+    mock_response.output = [mock_output_item]
     
     with patch('paper_classification.OpenAI') as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         with patch('paper_classification.time.sleep'):

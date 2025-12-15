@@ -336,16 +336,19 @@ def test_topic_label_generator_mock():
         return
     
     with patch('topic_taxonomy.OpenAI') as mock_openai:
-        # Mock the API response
+        # Mock the API response - Responses API format
         mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = json.dumps({
+        mock_output_item = Mock()
+        mock_content_item = Mock()
+        mock_content_item.text = json.dumps({
             'label': 'Machine Learning',
             'description': 'Papers about ML and AI.'
         })
+        mock_output_item.content = [mock_content_item]
+        mock_response.output = [mock_output_item]
         
         mock_client = Mock()
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         mock_openai.return_value = mock_client
         
         # Create generator

@@ -645,7 +645,15 @@ Format your response as JSON:
                 response_format={"type": "json_object"}
             )
             
-            result_text = response.choices[0].message.content
+            # Extract text from Responses API format: response.output[0].content[0].text
+            if response.output and len(response.output) > 0:
+                output_item = response.output[0]
+                if hasattr(output_item, 'content') and len(output_item.content) > 0:
+                    result_text = output_item.content[0].text
+                else:
+                    raise ValueError(f"No content in response output. output_item: {repr(output_item)}")
+            else:
+                raise ValueError(f"Empty response output. response.output: {repr(response.output)}")
             result = json.loads(result_text)
             
             label = result.get('label', f'Tier {tier} Topic')

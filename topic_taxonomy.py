@@ -651,9 +651,9 @@ Format your response as JSON:
                 if hasattr(output_item, 'content') and len(output_item.content) > 0:
                     result_text = output_item.content[0].text
                 else:
-                    raise ValueError("No content in response output")
+                    raise ValueError(f"No content in response output. output_item: {repr(output_item)}")
             else:
-                raise ValueError("Empty response output")
+                raise ValueError(f"Empty response output. response.output: {repr(response.output)}")
             result = json.loads(result_text)
             
             label = result.get('label', f'Tier {tier} Topic')

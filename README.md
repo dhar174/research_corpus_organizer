@@ -1,7 +1,7 @@
 # RAG PDF Research Corpus Organizer
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/dhar174/research_corpus_organizer)
-[![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/pypi/v/rag-pdf-research-corpus.svg)](https://pypi.org/project/rag-pdf-research-corpus/)
+[![Python](https://img.shields.io/pypi/pyversions/rag-pdf-research-corpus.svg)](https://pypi.org/project/rag-pdf-research-corpus/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A comprehensive system for processing and organizing academic PDF research papers using LangGraph workflows, GPT-5.1 Thinking, and RAG (Retrieval-Augmented Generation).
@@ -457,6 +457,19 @@ python examples_phase16.py
 
 ## Installation
 
+### From PyPI (Recommended)
+
+```bash
+# Install the package
+pip install rag-pdf-research-corpus
+
+# Or with optional dependencies
+pip install rag-pdf-research-corpus[visualization]  # For charts and plots
+pip install rag-pdf-research-corpus[ocr]            # For OCR support
+pip install rag-pdf-research-corpus[all]            # All optional features
+pip install rag-pdf-research-corpus[full]           # All features + dev tools
+```
+
 ### From Source (Development)
 
 ```bash
@@ -469,6 +482,19 @@ pip install -e .
 
 # Or with all optional dependencies
 pip install -e ".[full]"
+```
+
+### Building the Package
+
+```bash
+# Install build tools
+pip install build twine
+
+# Build source distribution and wheel
+python -m build
+
+# Verify the build
+python -m twine check dist/*
 ```
 
 ### Dependencies
@@ -517,6 +543,13 @@ config = create_default_config(
 - Ensure PDF is not encrypted/password-protected
 
 #### Import errors
+If you installed from PyPI:
+```python
+from rag_models import RunConfig, PaperRecord
+from workflow_orchestrator import run_full_pipeline
+```
+
+If running from source:
 ```python
 import sys
 sys.path.append('/path/to/research_corpus_organizer')
@@ -581,9 +614,48 @@ state['taxonomy_approved'] = True
 
 ---
 
+## Publishing to PyPI
+
+This package uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) for secure, automated releases.
+
+### Automated Publishing (GitHub Actions)
+
+1. Create a new GitHub Release
+2. The `publish.yml` workflow will automatically:
+   - Build the package
+   - Verify the distribution
+   - Publish to PyPI using OIDC authentication
+
+### Setting Up Trusted Publishing
+
+To set up Trusted Publishing on PyPI:
+
+1. Go to [PyPI](https://pypi.org) → Your Project → Publishing → Add new publisher
+2. Select **GitHub** as the publisher
+3. Enter:
+   - **Owner:** `dhar174`
+   - **Repository:** `research_corpus_organizer`  
+   - **Workflow name:** `publish.yml`
+   - **Environment:** `pypi` (optional, for more control)
+
+### Manual Publishing
+
+```bash
+# Build the package
+python -m build
+
+# Upload to TestPyPI (for testing)
+python -m twine upload --repository testpypi dist/*
+
+# Upload to PyPI
+python -m twine upload dist/*
+```
+
+---
+
 ## License
 
-See repository license.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 

@@ -44,9 +44,10 @@ htmlcov/
 *.tmp
 *.bak
 
-# Test files (but keep test_phase*.py)
+# Test files (but keep test_phase*.py and test_package_publish.py)
 test_*.py
 !test_phase*.py
+!test_package_publish.py
 
 # OS
 .DS_Store

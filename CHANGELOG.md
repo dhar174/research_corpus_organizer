@@ -180,6 +180,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- PyPI packaging support with `pyproject.toml` (PEP 621/517 compliant)
+- Package verification tests (`test_package_publish.py`)
+- `MANIFEST.in` for source distribution control
+- `GITHUB_ACTIONS_SETUP.md` with workflow configurations for Trusted Publishing
+- Updated README with PyPI installation instructions
+- PyPI badges in README
+
+### Changed
+- Simplified `setup.py` to thin wrapper for backward compatibility
+- Updated `.gitignore` to include test_package_publish.py
+
 ### Planned
 - Web interface (Gradio/Streamlit)
 - Fine-tuned models for better classification
